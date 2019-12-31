@@ -1,11 +1,9 @@
 import requests
 import quandl
-from alpha_vantage.timeseries import TimeSeries
 import pandas as pd
 
 ### Setup ###
 fmpurl = 'https://financialmodelingprep.com/api/v3/'
-ts = TimeSeries(key='RTTXKJUUS1T7295W', output_format='pandas')
 quandl.ApiConfig.api_key = "WrfYxYjepwxbuzY9TxjP"
 
 def get_treas(arg):
@@ -134,12 +132,5 @@ def get_ratio(ticker, ratio):
     except:
         print('Call to get_ratio() failed:', ticker)
         return None
-    
+
     return ratio
-
-
-### Alpha Vantage ###
-# Add a try loop in the code for KeyError because that is what is thrown if
-# AlphaVantage rate limits an apikey (5 per minute)
-#   Should be functionality for users to type in their own keys for alphavantage
-
