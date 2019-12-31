@@ -110,10 +110,25 @@ def get_stock(ticker):
     try:
         dailyprices = pd.DataFrame(requests.get(fmpurl+'historical-price-full/'+ticker+'?serietype=line').json()['historical']).set_index('date')
     except KeyError:
-        print('Invalid Ticker for get_stock')
+        print('Invalid Ticker for get_stock (%s)' % (ticker))
         return None
     dailyprices.index = pd.to_datetime(dailyprices.index)
     return dailyprices.close
+
+def get_stocks(tickerList):
+    dataOut = pd.DataFrame()
+    errors = []
+    for ticker in tickerList:
+        try:
+            dailyprices = pd.DataFrame(requests.get(fmpurl+'historical-price-full/'+ticker+'?serietype=line').json()['historical']).set_index('date')
+            dailyprices.index = pd.to_datetime(dailyprices.index)
+            dailyprices = dailyprices.close
+            dataOut = pd.concat([dataOut, dailyprices], axis=1) 
+        except KeyError:
+            errors.append(ticker)
+
+    print('Error tickers:', errors)
+
 
 def get_ratio(ticker, ratio):
     try:
