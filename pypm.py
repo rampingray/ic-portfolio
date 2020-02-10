@@ -14,6 +14,8 @@ import sys
 ### Constants ###
 #################
 
+# Literally days worth of code thrown away
+
 ### Risk Free Rate ###
 riskfree = get_treas('10 yr')[-1] / 100                                         # Annual risk free rate
 riskfree_daily = ((riskfree + 1) ** (1/252) - 1)                                # Converts annual risk free to daily
@@ -525,4 +527,3 @@ if __name__ == '__main__':
         import_excel(sys.argv[1], flex_cash=True)
     else:
         import_excel('./inputs/transactions2.xlsx', flex_cash=True)
-    
