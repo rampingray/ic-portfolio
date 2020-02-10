@@ -9,12 +9,12 @@ from scipy.stats import linregress
 import numpy as np
 import requests
 import sys
-    
+
 #################
 ### Constants ###
 #################
 
-# Literally days worth of code thrown away
+# Speedy speed
 
 ### Risk Free Rate ###
 riskfree = get_treas('10 yr')[-1] / 100                                         # Annual risk free rate
@@ -511,17 +511,17 @@ def holdings_sector(date = 'present'):
 
 ### Running if  ###
 if __name__ == '__main__':
-    
+
     ### Portfolio ###
     portfolio = pd.DataFrame()                                                  # Dataframe giving portfolio balances of each holding
     balances = pd.DataFrame()                                                   # Series holding the balance that created each holding in "portfolio"
     pBalance = pd.Series()                                                      # Series storing the balance of the overall portfolio
-    
+
     ### Sector Holdings ###
     sector_holdings = {'Staples':[], 'Discretionary':[], 'Energy':[],
     'REITs':[], 'Financials':[], 'Healthcare':[], 'Industrials':[],
     'Utilities':[], 'Macro':[], 'Technology':[], 'Fixed Income':[]}
-    
+
     ### Import Data from Excel ###
     if len(sys.argv) > 1:
         import_excel(sys.argv[1], flex_cash=True)
