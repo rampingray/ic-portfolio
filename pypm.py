@@ -14,6 +14,8 @@ import sys
 ### Constants ###
 #################
 
+# Testing commit buttons
+
 ### Risk Free Rate ###
 riskfree = get_treas('10 yr')[-1] / 100                                         # Annual risk free rate
 riskfree_daily = ((riskfree + 1) ** (1/252) - 1)                                # Converts annual risk free to daily
