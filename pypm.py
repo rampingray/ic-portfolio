@@ -210,14 +210,16 @@ def sell(ticker, date, shares, price = None, sector = None):
         return None
 
     # Sets sales price if specified, uses closing price otherwise
-    if not np.isnan(price):                                                                                             # Lets you set a price if you bought for a specific price
-        portfolio[ticker][date] = price * shares
-    else:
+    if np.isnan(price):                                                                                                 # Lets you set a price if you bought for a specific price
         price = dailyprices[date]
 
     # Subtracts the sale amount from the position in portfolio and balance in balances, then updates share count
     portfolio[ticker][date:] -= dailyprices[date:] * shares                                                             # Subtracts the value of the shares sold from future holdings
-    balances['Cash'].loc[date:] -= shares * holdings[ticker].price
+    portfolio['Cash'].loc[date:] += shares * price
+
+    balances['Cash'].loc[date:] += shares * price
+    balances[ticker].loc[date:] -= shares * holdings[ticker].price
+
     holdings[ticker].sell(shares)
 
 
@@ -246,17 +248,17 @@ def analytics(level='basic'):
         balances = balances.reindex(newIndex, method='pad')
 
     portfolioSum = portfolio.fillna(method='pad').sum(axis=1)
-    balancesSum = balances.fillna(0)
-    portfolioReturns = (portfolioSum.shift(1) - portfolioSum - (balancesSum.shift(1) - balancesSum)) / (portfolioSum + (balancesSum.shift(1) - balancesSum))
+    balancesSum = balances.fillna(0).sum(axis=1)
+    portfolioReturns = (portfolioSum - portfolioSum.shift(1) - (balancesSum - balancesSum.shift(1))) / (portfolioSum + (balancesSum - balancesSum.shift(1)))
     portfolioReturns.name = 'Portfolio'
+    portfolioReturns.iloc[0] = 0
     portfolioNormalized = (portfolioReturns + 1).cumprod()
 
     marketReturns = get_stock('spy')[portfolioSum.index[0]:].pct_change()*100
     marketReturns.name = 'SP500'
 
-    first_index = portfolioNormalized.first_valid_index()                                                                # Try to delete
-    portfolioIndexNorm = pd.concat([portfolioNormalized[first_index:], marketReturns[first_index:]], axis=1) - riskFreeDaily
-    portfolioIndexNorm = portfolioIndexNorm[1:]                                                                                     # Try to delete
+    first_index = portfolioNormalized.first_valid_index()                                                               # Try to delete
+    returnsPortfolioIndex = pd.concat([portfolioReturns[first_index:]*100, marketReturns[first_index:]], axis=1)[1:] - riskFreeDaily
 
     # Returns
     analytics['% Return-1M'] = (portfolioNormalized.iloc[-1] / portfolioNormalized.iloc[portfolioNormalized.index.get_loc(datetime.date.today()-datetime.timedelta(days=30), method='pad')] - 1) * 100
@@ -270,11 +272,11 @@ def analytics(level='basic'):
     # Statistics
     #   Beta = Adjusted Beta
     #   Alpha = Annualized Alpha (Based on Portfolio CAGR)
-    analytics['Beta'] = portfolioIndexNorm.Portfolio.cov(portfolioIndexNorm.SP500)/portfolioIndexNorm.SP500.var() * (2 / 3) + (1 / 3)
-    expected_return = (analytics["Beta"] * (marketRate - 1 - (riskFree-1)) + (riskFree-1)) * 100
+    analytics['Beta'] = returnsPortfolioIndex['Portfolio'].cov(returnsPortfolioIndex.SP500)/returnsPortfolioIndex.SP500.var() * (2 / 3) + (1 / 3)
+    expected_return = (analytics["Beta"] * (marketRate - riskFree) + riskFree) * 100
     analytics['Alpha'] = (analytics['% Return-CAGR'] / 100 - expected_return / 100) * 100
-    analytics['Sharpe'] = float((analytics['% Return-CAGR'] / 100 - (riskFree - 1)) / ((portfolioReturns[portfolioReturns.first_valid_index():] / 100).std() * 252**0.5))
-    analytics['Treynor'] = float((analytics['% Return-CAGR'] / 100 - (riskFree - 1)) / analytics['Beta'])
+    analytics['Sharpe'] = float((analytics['% Return-CAGR'] / 100 - riskFree) / ((portfolioReturns).std() * 252**0.5))
+    analytics['Treynor'] = float((analytics['% Return-CAGR'] / 100 - riskFree) / analytics['Beta'])
 
     # Advanced Statistics
     #   Std. Deviation = Annualized StdDev = Daily StdDev * sqrt(# of Trading Days)
@@ -284,8 +286,8 @@ def analytics(level='basic'):
         drawdown['CumMax'] = drawdown.Prices.cummax()
         drawdown['Drawdown'] = (drawdown['Prices'] - drawdown['CumMax']) / drawdown['CumMax']
         analytics['Max Drawdown'] = float(drawdown['Drawdown'].min()) * 100
-        analytics['Std. Deviation'] = float(portfolioIndexNorm.Portfolio.std() * 252**0.5)
-        analytics['R-Squared'] = (portfolioIndexNorm.Portfolio.cov(portfolioIndexNorm.SP500) / (portfolioIndexNorm.Portfolio.std() * portfolioIndexNorm.SP500.std()))**2
+        analytics['Std. Deviation'] = float(returnsPortfolioIndex.Portfolio.std() * 252**0.5)
+        analytics['R-Squared'] = (returnsPortfolioIndex.Portfolio.cov(returnsPortfolioIndex.SP500) / (returnsPortfolioIndex.Portfolio.std() * returnsPortfolioIndex.SP500.std()))**2
         analytics['Expected Return'] = expected_return
 
     portfolioNormalized.to_excel('./outputs/portfolioNormalized.xlsx')
@@ -608,6 +610,6 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         import_excel(sys.argv[1], flexCash=True)
     else:
-        import_excel('./inputs/transactions2.xlsx', flexCash=True)
+        import_excel('./inputs/transactions_5Y.xlsx', flexCash=True)
 
     print(analytics('advanced'))
