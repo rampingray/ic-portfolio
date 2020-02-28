@@ -247,50 +247,51 @@ def analytics(level='basic'):
         portfolio = portfolio.reindex(newIndex, method='pad')
         balances = balances.reindex(newIndex, method='pad')
 
-    portfolioSum = portfolio.fillna(method='pad').sum(axis=1)
-    balancesSum = balances.fillna(0).sum(axis=1)
-    portfolioReturns = (portfolioSum - portfolioSum.shift(1) - (balancesSum - balancesSum.shift(1))) / (portfolioSum + (balancesSum - balancesSum.shift(1)))
-    portfolioReturns.name = 'Portfolio'
-    portfolioReturns.iloc[0] = 0
-    portfolioNormalized = (portfolioReturns + 1).cumprod()
+    sumPortfolio = portfolio.fillna(method='pad').sum(axis=1)
+    sumBalances = balances.fillna(0).sum(axis=1)
+    returnsPortfolio = (sumPortfolio - sumPortfolio.shift(1) - (sumBalances - sumBalances.shift(1))) / (sumPortfolio + (sumBalances - sumBalances.shift(1)))
+    returnsPortfolio.name = 'Portfolio'
+    returnsPortfolio.iloc[0] = 0
+    normalizedPortfolio = (returnsPortfolio + 1).cumprod()
 
-    marketReturns = get_stock('spy')[portfolioSum.index[0]:].pct_change()*100
-    marketReturns.name = 'SP500'
+    returnsMarket = get_stock('spy')[sumPortfolio.index[0]:].pct_change()*100
+    returnsMarket.name = 'SP500'
 
-    first_index = portfolioNormalized.first_valid_index()                                                               # Try to delete
-    returnsPortfolioIndex = pd.concat([portfolioReturns[first_index:]*100, marketReturns[first_index:]], axis=1)[1:] - riskFreeDaily
+    returnsPortfolioMarket = pd.concat([returnsPortfolio * 100, returnsMarket], axis=1)[1:] - riskFreeDaily
+
+    returnsWeekly = returnsPortfolioMarket.resample('W-MON').agg(lambda x: (1+x/100).prod()-1)*100
 
     # Returns
-    analytics['% Return-1M'] = (portfolioNormalized.iloc[-1] / portfolioNormalized.iloc[portfolioNormalized.index.get_loc(datetime.date.today()-datetime.timedelta(days=30), method='pad')] - 1) * 100
-    analytics['% Return-3M'] = (portfolioNormalized.iloc[-1] / portfolioNormalized.iloc[portfolioNormalized.index.get_loc(datetime.date.today()-datetime.timedelta(days=90), method='pad')] - 1) * 100
-    analytics['% Return-YTD'] = (portfolioNormalized.iloc[-1] / portfolioNormalized.iloc[portfolioNormalized.index.get_loc(datetime.date(datetime.date.today().year, 1, 1), method='pad')] - 1) * 100
-    analytics['% Return-1Y'] = (portfolioNormalized.iloc[-1] / portfolioNormalized.iloc[portfolioNormalized.index.get_loc(datetime.date.today()-datetime.timedelta(days=365), method='pad')] - 1) * 100
-    analytics['% Return-Max'] = (portfolioNormalized.iloc[-1] / portfolioNormalized.iloc[0] - 1) * 100
-    analytics['% Return-CAGR'] = ((portfolioNormalized.iloc[-1] / portfolioNormalized.iloc[0])**((1/((portfolioNormalized.index[-1] - portfolioNormalized.index[0]).total_seconds()/(86400*365)))) - 1) * 100
-    analytics['Portfolio Cap'] = float(portfolioSum.iloc[-1])
+    analytics['% Return-1M'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[normalizedPortfolio.index.get_loc(datetime.date.today()-datetime.timedelta(days=30), method='pad')] - 1) * 100
+    analytics['% Return-3M'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[normalizedPortfolio.index.get_loc(datetime.date.today()-datetime.timedelta(days=90), method='pad')] - 1) * 100
+    analytics['% Return-YTD'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[normalizedPortfolio.index.get_loc(datetime.date(datetime.date.today().year, 1, 1), method='pad')] - 1) * 100
+    analytics['% Return-1Y'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[normalizedPortfolio.index.get_loc(datetime.date.today()-datetime.timedelta(days=365), method='pad')] - 1) * 100
+    analytics['% Return-Max'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[0] - 1) * 100
+    analytics['% Return-CAGR'] = ((normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[0])**((1/((normalizedPortfolio.index[-1] - normalizedPortfolio.index[0]).total_seconds()/(86400*365)))) - 1) * 100
+    analytics['Portfolio Value'] = float(sumPortfolio.iloc[-1])
 
     # Statistics
     #   Beta = Adjusted Beta
     #   Alpha = Annualized Alpha (Based on Portfolio CAGR)
-    analytics['Beta'] = returnsPortfolioIndex['Portfolio'].cov(returnsPortfolioIndex.SP500)/returnsPortfolioIndex.SP500.var() * (2 / 3) + (1 / 3)
-    expected_return = (analytics["Beta"] * (marketRate - riskFree) + riskFree) * 100
+    analytics['3Y Adj Beta'] = returnsWeekly['Portfolio'].cov(returnsWeekly.SP500)/returnsWeekly.SP500.var() * (2 / 3) + (1 / 3)
+    expected_return = (analytics['3Y Adj Beta'] * (marketRate - riskFree) + riskFree) * 100
     analytics['Alpha'] = (analytics['% Return-CAGR'] / 100 - expected_return / 100) * 100
-    analytics['Sharpe'] = float((analytics['% Return-CAGR'] / 100 - riskFree) / ((portfolioReturns).std() * 252**0.5))
-    analytics['Treynor'] = float((analytics['% Return-CAGR'] / 100 - riskFree) / analytics['Beta'])
+    analytics['Sharpe'] = float((analytics['% Return-CAGR'] / 100 - riskFree) / ((returnsPortfolio).std() * 252**0.5))
+    analytics['Treynor'] = float((analytics['% Return-CAGR'] / 100 - riskFree) / analytics['3Y Adj Beta'])
 
     # Advanced Statistics
     #   Std. Deviation = Annualized StdDev = Daily StdDev * sqrt(# of Trading Days)
     if level == 'advanced':
         drawdown = pd.DataFrame()
-        drawdown['Prices'] = portfolioNormalized
+        drawdown['Prices'] = normalizedPortfolio
         drawdown['CumMax'] = drawdown.Prices.cummax()
         drawdown['Drawdown'] = (drawdown['Prices'] - drawdown['CumMax']) / drawdown['CumMax']
         analytics['Max Drawdown'] = float(drawdown['Drawdown'].min()) * 100
-        analytics['Std. Deviation'] = float(returnsPortfolioIndex.Portfolio.std() * 252**0.5)
-        analytics['R-Squared'] = (returnsPortfolioIndex.Portfolio.cov(returnsPortfolioIndex.SP500) / (returnsPortfolioIndex.Portfolio.std() * returnsPortfolioIndex.SP500.std()))**2
+        analytics['Std. Deviation'] = float(returnsPortfolioMarket.Portfolio.std() * 252**0.5)
+        analytics['R-Squared'] = (returnsPortfolioMarket.Portfolio.cov(returnsPortfolioMarket.SP500) / (returnsPortfolioMarket.Portfolio.std() * returnsPortfolioMarket.SP500.std()))**2
         analytics['Expected Return'] = expected_return
 
-    portfolioNormalized.to_excel('./outputs/portfolioNormalized.xlsx')
+    normalizedPortfolio.to_excel('./outputs/normalizedPortfolio.xlsx')
 
     return pd.Series(analytics, index = list(analytics.keys())).round(3)
 
@@ -317,25 +318,25 @@ def sector_analytics(level='basic', excel=False):
 
     # Daily Return Data #
     analytics = {}
-    marketReturns = get_stock('spy')
-    marketReturns = marketReturns[portfolio_bysector.index[0]:].pct_change()*100
-    marketReturns.name = 'SP500'
-    portfolioNormalized = portfolio_bysector.divide(sector_netinvested, axis=0)
-    normalized_returns = portfolioNormalized.pct_change()*100
+    returnsMarket = get_stock('spy')
+    returnsMarket = returnsMarket[portfolio_bysector.index[0]:].pct_change()*100
+    returnsMarket.name = 'SP500'
+    normalizedPortfolio = portfolio_bysector.divide(sector_netinvested, axis=0)
+    normalized_returns = normalizedPortfolio.pct_change()*100
     first_index = normalized_returns.first_valid_index()
-    portfolioIndexNorm = pd.concat([normalized_returns[first_index:], marketReturns[first_index:]], axis=1) - riskFreeDaily
+    portfolioIndexNorm = pd.concat([normalized_returns[first_index:], returnsMarket[first_index:]], axis=1) - riskFreeDaily
     portfolioIndexNorm = portfolioIndexNorm[1:]
 
 
     # Returns #
-    for column in portfolioNormalized.columns:
+    for column in normalizedPortfolio.columns:
         position = {}
-        position['% Return-1M'] = (portfolioNormalized[column].iloc[-1] / portfolioNormalized[column].iloc[portfolioNormalized[column].index.get_loc(datetime.date.today()-datetime.timedelta(days=30), method='pad')] - 1) * 100
-        position['% Return-3M'] = (portfolioNormalized[column].iloc[-1] / portfolioNormalized[column].iloc[portfolioNormalized[column].index.get_loc(datetime.date.today()-datetime.timedelta(days=90), method='pad')] - 1) * 100
-        position['% Return-YTD'] = (portfolioNormalized[column].iloc[-1] / portfolioNormalized[column].iloc[portfolioNormalized[column].index.get_loc(datetime.date(datetime.date.today().year, 1, 1), method='pad')] - 1) * 100
-        position['% Return-1Y'] = (portfolioNormalized[column].iloc[-1] / portfolioNormalized[column].iloc[portfolioNormalized[column].index.get_loc(datetime.date.today()-datetime.timedelta(days=365), method='pad')] - 1) * 100
-        position['% Return-Max'] = (portfolioNormalized[column].iloc[-1] / portfolioNormalized[column].iloc[0] - 1) * 100
-        position['% Return-CAGR'] = ((portfolioNormalized[column].iloc[-1] / portfolioNormalized[column].iloc[0])**((1/((portfolioNormalized[column].index[-1] - portfolioNormalized[column].index[0]).total_seconds()/(86400*365)))) - 1) * 100
+        position['% Return-1M'] = (normalizedPortfolio[column].iloc[-1] / normalizedPortfolio[column].iloc[normalizedPortfolio[column].index.get_loc(datetime.date.today()-datetime.timedelta(days=30), method='pad')] - 1) * 100
+        position['% Return-3M'] = (normalizedPortfolio[column].iloc[-1] / normalizedPortfolio[column].iloc[normalizedPortfolio[column].index.get_loc(datetime.date.today()-datetime.timedelta(days=90), method='pad')] - 1) * 100
+        position['% Return-YTD'] = (normalizedPortfolio[column].iloc[-1] / normalizedPortfolio[column].iloc[normalizedPortfolio[column].index.get_loc(datetime.date(datetime.date.today().year, 1, 1), method='pad')] - 1) * 100
+        position['% Return-1Y'] = (normalizedPortfolio[column].iloc[-1] / normalizedPortfolio[column].iloc[normalizedPortfolio[column].index.get_loc(datetime.date.today()-datetime.timedelta(days=365), method='pad')] - 1) * 100
+        position['% Return-Max'] = (normalizedPortfolio[column].iloc[-1] / normalizedPortfolio[column].iloc[0] - 1) * 100
+        position['% Return-CAGR'] = ((normalizedPortfolio[column].iloc[-1] / normalizedPortfolio[column].iloc[0])**((1/((normalizedPortfolio[column].index[-1] - normalizedPortfolio[column].index[0]).total_seconds()/(86400*365)))) - 1) * 100
         position['Sector Cap'] = float(portfolio_bysector.iloc[-1][column])
 
         # Statistics #
@@ -351,7 +352,7 @@ def sector_analytics(level='basic', excel=False):
         #   Std. Deviation = Annualized StdDev = Daily StdDev * sqrt(# of Trading Days)
         if level == 'advanced':
             drawdown = pd.DataFrame()
-            drawdown['Prices'] = portfolioNormalized[column]
+            drawdown['Prices'] = normalizedPortfolio[column]
             drawdown['CumMax'] = drawdown.Prices.cummax()
             drawdown['Drawdown'] = (drawdown['Prices'] - drawdown['CumMax']) / drawdown['CumMax']
             position['Max Drawdown'] = float(drawdown['Drawdown'].min()) * 100
@@ -362,7 +363,7 @@ def sector_analytics(level='basic', excel=False):
         analytics[column] = position
 
     output = pd.DataFrame(analytics, index = list(position.keys())).round(3)
-    output2 = portfolioNormalized
+    output2 = normalizedPortfolio
     output3 = pd.DataFrame(requests.get(fmpurl+'historical-price-full/SPY?serietype=line').json()['historical']).set_index('date')
 
 
@@ -382,24 +383,24 @@ def performance(ticker, select_date = 'present'):
         stock_value = portfolio[ticker]
     except KeyError:
         return f'{ticker} not found'
-    marketReturns = get_stock('spy')
-    marketReturns = marketReturns[stock_value.index[0]:].pct_change()*100
-    marketReturns.name = 'SP500'
+    returnsMarket = get_stock('spy')
+    returnsMarket = returnsMarket[stock_value.index[0]:].pct_change()*100
+    returnsMarket.name = 'SP500'
     amountinvested = holdings[ticker].baseposition.reindex(stock_value.index, method='pad')
-    portfolioNormalized = stock_value.divide(amountinvested, axis=0)
-    normalized_returns = portfolioNormalized.pct_change()*100
+    normalizedPortfolio = stock_value.divide(amountinvested, axis=0)
+    normalized_returns = normalizedPortfolio.pct_change()*100
     normalized_returns.name = ticker
     first_index = normalized_returns.first_valid_index()
-    portfolioIndexNorm = pd.concat([normalized_returns[first_index:], marketReturns[first_index:]], axis=1) - riskFreeDaily
+    portfolioIndexNorm = pd.concat([normalized_returns[first_index:], returnsMarket[first_index:]], axis=1) - riskFreeDaily
     portfolioIndexNorm = portfolioIndexNorm[1:]
 
     # Returns
-    analytics['% Return-1M'] = (portfolioNormalized.iloc[-1] / portfolioNormalized.iloc[portfolioNormalized.index.get_loc(datetime.date.today()-datetime.timedelta(days=30), method='pad')] - 1) * 100
-    analytics['% Return-3M'] = (portfolioNormalized.iloc[-1] / portfolioNormalized.iloc[portfolioNormalized.index.get_loc(datetime.date.today()-datetime.timedelta(days=90), method='pad')] - 1) * 100
-    analytics['% Return-YTD'] = (portfolioNormalized.iloc[-1] / portfolioNormalized.iloc[portfolioNormalized.index.get_loc(datetime.date(datetime.date.today().year, 1, 1), method='pad')] - 1) * 100
-    analytics['% Return-1Y'] = (portfolioNormalized.iloc[-1] / portfolioNormalized.iloc[portfolioNormalized.index.get_loc(datetime.date.today()-datetime.timedelta(days=365), method='pad')] - 1) * 100
-    analytics['% Return-Max'] = (portfolioNormalized.iloc[-1] / portfolioNormalized[0] - 1) * 100
-    analytics['% Return-CAGR'] = ((portfolioNormalized[-1] / portfolioNormalized[0])**((1/((portfolioNormalized.index[-1] - portfolioNormalized.index[0]).total_seconds()/(86400*365)))) - 1) * 100
+    analytics['% Return-1M'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[normalizedPortfolio.index.get_loc(datetime.date.today()-datetime.timedelta(days=30), method='pad')] - 1) * 100
+    analytics['% Return-3M'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[normalizedPortfolio.index.get_loc(datetime.date.today()-datetime.timedelta(days=90), method='pad')] - 1) * 100
+    analytics['% Return-YTD'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[normalizedPortfolio.index.get_loc(datetime.date(datetime.date.today().year, 1, 1), method='pad')] - 1) * 100
+    analytics['% Return-1Y'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[normalizedPortfolio.index.get_loc(datetime.date.today()-datetime.timedelta(days=365), method='pad')] - 1) * 100
+    analytics['% Return-Max'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio[0] - 1) * 100
+    analytics['% Return-CAGR'] = ((normalizedPortfolio[-1] / normalizedPortfolio[0])**((1/((normalizedPortfolio.index[-1] - normalizedPortfolio.index[0]).total_seconds()/(86400*365)))) - 1) * 100
     analytics['Beta'] = portfolioIndexNorm[ticker].cov(portfolioIndexNorm.SP500)/portfolioIndexNorm.SP500.var() * (2 / 3) + (1 / 3)
     expected_return = (analytics["Beta"] * (marketRate - 1 - (riskFree-1)) + (riskFree-1)) * 100
     analytics['Alpha'] = (analytics['% Return-CAGR'] / 100 - expected_return / 100) * 100
@@ -452,10 +453,10 @@ def correlation(ticker = None, index = 'SPX', sector = None, commodity = None, e
 def correlation_matrix(group_by="portfolio", excel=False):
     if group_by == 'portfolio':
         aPortfolio = portfolio
-        portfolioSum = aPortfolio.sum(axis=1)
+        sumPortfolio = aPortfolio.sum(axis=1)
         netcash_reindexed = netcash.reindex(aPortfolio.index, method='pad')
-        portfolioNormalized = (portfolioSum / netcash_reindexed)
-        normalized_returns = portfolioNormalized.pct_change()*100
+        normalizedPortfolio = (sumPortfolio / netcash_reindexed)
+        normalized_returns = normalizedPortfolio.pct_change()*100
         normalized_returns.name = 'Portfolio'
         first_index = normalized_returns.first_valid_index()
         normalized_returns = normalized_returns[first_index:]
@@ -485,8 +486,8 @@ def correlation_matrix(group_by="portfolio", excel=False):
             sector_netinvested = sector_netinvested.fillna(method='pad')
 
         # Daily Return Data #
-        portfolioNormalized = portfolio_bysector.divide(sector_netinvested, axis=0)
-        normalized_returns = portfolioNormalized.pct_change()
+        normalizedPortfolio = portfolio_bysector.divide(sector_netinvested, axis=0)
+        normalized_returns = normalizedPortfolio.pct_change()
         normalized_returns = normalized_returns[normalized_returns.first_valid_index():]
 
         output = normalized_returns.corr()
@@ -560,16 +561,16 @@ def chart(topic, beta_method='market', period = 'ytd'):
         c_portfolio['CashBalance'] = cashbalance.reindex(c_portfolio.index, method='nearest')
         c_portfolio_sum = c_portfolio.sum(axis=1)
         c_portfolio_sum = c_portfolio_sum[c_portfolio_sum.index.get_loc(date, method='nearest'):]
-        marketReturns = get_stock('spy')
-        marketReturns = marketReturns[marketReturns.index.get_loc(date, method='nearest'):]
-        marketReturns = marketReturns[marketReturns.index[0]:] / marketReturns[marketReturns.index[0]] * 10000
-        marketReturns.name = 'SP500'
+        returnsMarket = get_stock('spy')
+        returnsMarket = returnsMarket[returnsMarket.index.get_loc(date, method='nearest'):]
+        returnsMarket = returnsMarket[returnsMarket.index[0]:] / returnsMarket[returnsMarket.index[0]] * 10000
+        returnsMarket.name = 'SP500'
         netcash_reindexed = netcash.reindex(c_portfolio_sum.index, method='nearest')
-        portfolioNormalized = (c_portfolio_sum / netcash_reindexed)
-        normalized_returns = portfolioNormalized / portfolioNormalized[0] * 10000
+        normalizedPortfolio = (c_portfolio_sum / netcash_reindexed)
+        normalized_returns = normalizedPortfolio / normalizedPortfolio[0] * 10000
         normalized_returns.name = 'Portfolio'
         first_index = normalized_returns.first_valid_index()
-        portfolioIndexNorm = pd.concat([normalized_returns[first_index:], marketReturns[first_index:]], axis=1)
+        portfolioIndexNorm = pd.concat([normalized_returns[first_index:], returnsMarket[first_index:]], axis=1)
         portfolioIndexNorm = portfolioIndexNorm[1:]
         portfolioIndexNorm.plot()
         plt.show()
@@ -613,3 +614,4 @@ if __name__ == '__main__':
         import_excel('./inputs/transactions_5Y.xlsx', flexCash=True)
 
     print(analytics('advanced'))
+    print(ratios())
