@@ -249,13 +249,15 @@ def analytics(level='basic'):
 
     sumPortfolio = portfolio.fillna(method='pad').sum(axis=1)
     sumBalances = balances.fillna(0).sum(axis=1)
-    returnsPortfolio = (sumPortfolio - sumPortfolio.shift(1) - (sumBalances - sumBalances.shift(1))) / (sumPortfolio + (sumBalances - sumBalances.shift(1)))
+    returnsPortfolio = (sumPortfolio - sumPortfolio.shift(1) - (sumBalances - sumBalances.shift(1))) / (sumPortfolio)
     returnsPortfolio.name = 'Portfolio'
     returnsPortfolio.iloc[0] = 0
     normalizedPortfolio = (returnsPortfolio + 1).cumprod()
 
     returnsMarket = get_stock('spy')[sumPortfolio.index[0]:].pct_change()*100
     returnsMarket.name = 'SP500'
+    returnsMarket.iloc[0] = 0
+    normalizedMarket = (returnsMarket/100 + 1).cumprod()
 
     returnsPortfolioMarket = pd.concat([returnsPortfolio * 100, returnsMarket], axis=1)[1:] - riskFreeDaily
 
@@ -267,6 +269,11 @@ def analytics(level='basic'):
     analytics['% Return-YTD'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[normalizedPortfolio.index.get_loc(datetime.date(datetime.date.today().year, 1, 1), method='pad')] - 1) * 100
     analytics['% Return-1Y'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[normalizedPortfolio.index.get_loc(datetime.date.today()-datetime.timedelta(days=365), method='pad')] - 1) * 100
     analytics['% Return-Max'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[0] - 1) * 100
+
+    analytics['% Return-3Y'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[normalizedPortfolio.index.get_loc(datetime.date.today()-datetime.timedelta(days=365*3), method='pad')] - 1) * 100
+
+    analytics['% Return-CAGR'] = ((normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[0])**((1/((normalizedPortfolio.index[-1] - normalizedPortfolio.index[0]).total_seconds()/(86400*365)))) - 1) * 100
+
     analytics['% Return-CAGR'] = ((normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[0])**((1/((normalizedPortfolio.index[-1] - normalizedPortfolio.index[0]).total_seconds()/(86400*365)))) - 1) * 100
     analytics['Portfolio Value'] = float(sumPortfolio.iloc[-1])
 
@@ -614,6 +621,6 @@ if __name__ == '__main__':
     else:
         import_excel('./inputs/transactions_5Y.xlsx', flexCash=True)
 
-    # print(analytics('advanced'))
-    # print(ratios())
-    print(sector_analytics('advanced', True))
+    print(analytics('advanced'))
+    print(ratios())
+    # print(sector_analytics('advanced', True))
