@@ -249,7 +249,7 @@ def analytics(level='basic'):
 
     sumPortfolio = portfolio.fillna(method='pad').sum(axis=1)
     sumBalances = balances.fillna(0).sum(axis=1)
-    returnsPortfolio = (sumPortfolio - sumPortfolio.shift(1) - (sumBalances - sumBalances.shift(1))) / (sumPortfolio)
+    returnsPortfolio = (sumPortfolio - sumPortfolio.shift(1) - (sumBalances - sumBalances.shift(1))) / (sumPortfolio.shift(1))
     returnsPortfolio.name = 'Portfolio'
     returnsPortfolio.iloc[0] = 0
     normalizedPortfolio = (returnsPortfolio + 1).cumprod()
@@ -298,7 +298,7 @@ def analytics(level='basic'):
         analytics['R-Squared'] = (returnsPortfolioMarket.Portfolio.cov(returnsPortfolioMarket.SP500) / (returnsPortfolioMarket.Portfolio.std() * returnsPortfolioMarket.SP500.std()))**2
         analytics['Expected Return'] = expected_return
 
-    normalizedPortfolio.to_excel('./outputs/normalizedPortfolio.xlsx')
+    returnsPortfolioMarket.to_excel('./outputs/returnsPortfolioMarket.xlsx')
 
     return pd.Series(analytics, index = list(analytics.keys())).round(3)
 
@@ -326,7 +326,7 @@ def sector_analytics(level='basic', excel=False):
     returnsMarket.name = 'SP500'
 
     returnsPortfolio = (portfolioBySector - portfolioBySector.shift(1) - (balancesBySector - balancesBySector.shift(1))) / (
-                portfolioBySector + (balancesBySector - balancesBySector.shift(1)))
+                portfolioBySector.shift(1) + (balancesBySector - balancesBySector.shift(1)))
     returnsPortfolio.name = 'Portfolio'
     returnsPortfolio.iloc[0] = 0
     normalizedPortfolio = (returnsPortfolio + 1).cumprod()
@@ -623,4 +623,4 @@ if __name__ == '__main__':
 
     print(analytics('advanced'))
     print(ratios())
-    # print(sector_analytics('advanced', True))
+    print(sector_analytics('advanced', True))
