@@ -16,21 +16,22 @@ import sys
 #################
 
 ### Portfolio and More###
-portfolio = pd.DataFrame()                                                                                              # Dataframe giving portfolio balances of each holding
-balances = pd.DataFrame()                                                                                               # Series holding the balance that created each holding in "portfolio"
-holdings = {}                                                                                                           # Dictionary holding instances of Holding indexed by strings of ticker
+portfolio = pd.DataFrame()  # Dataframe giving portfolio balances of each holding
+balances = pd.DataFrame()  # Series holding the balance that created each holding in "portfolio"
+holdings = {}  # Dictionary holding instances of Holding indexed by strings of ticker
 
 ### Sector Holdings ###
-sectorHoldings = {'Staples':[], 'Discretionary':[], 'Energy':[],
-    'REITs':[], 'Financials':[], 'Healthcare':[], 'Industrials':[],
-    'Utilities':[], 'Macro':[], 'Technology':[], 'Fixed Income':[]}
+sectorHoldings = {'Staples': [], 'Discretionary': [], 'Energy': [],
+                  'REITs': [], 'Financials': [], 'Healthcare': [], 'Industrials': [],
+                  'Utilities': [], 'Macro': [], 'Technology': [], 'Fixed Income': []}
 
 ### Risk Free Rate ###
-riskFree = get_treas('10 yr')[-1] / 100                                                                                 # Annual risk free rate (percentage)
-riskFreeDaily = ((riskFree + 1) ** (1/252) - 1)                                                                         # Converts annual risk free to daily (percentage)
+riskFree = get_treas('10 yr')[-1] / 100  # Annual risk free rate (percentage)
+riskFreeDaily = ((riskFree + 1) ** (1 / 252) - 1)  # Converts annual risk free to daily (percentage)
 
 ### Market Rate ###
-marketRate = 0.08                                                                                                       # Open to being changed
+marketRate = 0.08  # Open to being changed
+
 
 #########################
 ### Class Definitions ###
@@ -48,7 +49,7 @@ class Holding():
     def __str__(self):
         return f'Holding {self.shares} shares of {self.ticker} at ${self.price}'
 
-    def buy(self, shares,  price):
+    def buy(self, shares, price):
         self.price = (self.price * self.shares + price * shares) / (self.shares + shares)
         self.shares += shares
 
@@ -64,11 +65,11 @@ class Holding():
 def import_excel(filename, flexCash=False):
     # Imports the excel file and turns it into a DataFrame of Daily Prices
 
-    transactions = pd.read_excel(filename)                                                                              # Reads the excel file as a pandas dataframe
-    transactions.Action = transactions.Action.str.lower()                                                               # The following 2 lines make the columns lowercase so they're easier to use
+    transactions = pd.read_excel(filename)  # Reads the excel file as a pandas dataframe
+    transactions.Action = transactions.Action.str.lower()  # The following 2 lines make the columns lowercase so they're easier to use
     transactions.Ticker = transactions.Ticker.str.lower()
-    transactions = transactions.sort_values('Date')                                                                     # Sorts Transactions by Date
-    for index, trade in transactions.iterrows():                                                                        # Iterates over the trades in the excel sheet and adds them to the portfolio
+    transactions = transactions.sort_values('Date')  # Sorts Transactions by Date
+    for index, trade in transactions.iterrows():  # Iterates over the trades in the excel sheet and adds them to the portfolio
         if trade.Action == 'buy':
             buy(trade.Ticker, trade.Date, trade.Shares, trade.Price, trade.Sector, flexCash)
         elif trade.Action == 'sell':
@@ -79,6 +80,7 @@ def import_excel(filename, flexCash=False):
             withdraw(trade.Price, trade.Date)
         else:
             print('Invalid Order Type For:', trade.Ticker)
+
 
 ### Deposit ###
 def deposit(cash, date):
@@ -97,6 +99,7 @@ def deposit(cash, date):
     else:
         balances['Cash'].loc[date] = cash
 
+
 ### Withdraw ###
 def withdraw(cash, date):
     global portfolio
@@ -108,8 +111,9 @@ def withdraw(cash, date):
     # Withdraws cash from the cash balance in balances
     balances['Cash'].loc[date:] -= cash
 
+
 ### Buy ###
-def buy(ticker, date, shares, price = None, sector=None, flexCash=False):
+def buy(ticker, date, shares, price=None, sector=None, flexCash=False):
     # 1) Handles running out of cash or flexCash scneario
     # 2) Adds stock to sector dictionary if it is not there already
     # 3) Adds stock to balances/portfolio if it is not in either already
@@ -122,9 +126,9 @@ def buy(ticker, date, shares, price = None, sector=None, flexCash=False):
 
     # Tries to get pricing data and add ticker to sectorHoldings, returns None if not found
     try:
-        dailyPrices = get_stock(ticker)[date:]                                                                          # Gets the daily closing price for the past 20ish years
-        dailyPrices.name = ticker                                                                                           # Renames the Pandas Series with the ticker before appending to the portfolio
-        if sector != None:                                                                                              # Adds the given ticker to the sector's list if it's not in there already
+        dailyPrices = get_stock(ticker)[date:]  # Gets the daily closing price for the past 20ish years
+        dailyPrices.name = ticker  # Renames the Pandas Series with the ticker before appending to the portfolio
+        if sector != None:  # Adds the given ticker to the sector's list if it's not in there already
             if ticker not in sectorHoldings[sector]:
                 sectorHoldings[sector].append(ticker)
     except:
@@ -138,7 +142,7 @@ def buy(ticker, date, shares, price = None, sector=None, flexCash=False):
         price = dailyPrices.loc[date]
 
     # Checks if portfolio / balances have entries for cash
-    if 'Cash' not in portfolio.columns and 'Cash' not in balances.columns:                                              # Checks if already in the portfolio as to not overwrite any existing holding
+    if 'Cash' not in portfolio.columns and 'Cash' not in balances.columns:  # Checks if already in the portfolio as to not overwrite any existing holding
         portfolio.loc[date, 'Cash'] = 0
         balances.loc[date, 'Cash'] = 0
     elif 'Cash' not in portfolio.columns:
@@ -157,17 +161,18 @@ def buy(ticker, date, shares, price = None, sector=None, flexCash=False):
         print('Not enough cash to buy', ticker, "on", str(date))
         return None
     elif (portfolio['Cash'].loc[date] < price * shares) and flexCash == True:
-        deposit(price*shares - portfolio['Cash'].loc[date], date)
+        deposit(price * shares - portfolio['Cash'].loc[date], date)
 
     # Removes the purchase price from cash balances in balances and cash position in portfolio
     portfolio['Cash'].loc[date:] -= price * shares
     balances['Cash'].loc[date:] -= price * shares
 
     # Checks for existing position in portfolio and handles accordingly
-    if ticker not in portfolio.columns:                                                                                 # Checks if already in the portfolio as to not overwrite any existing holding
-        portfolio = pd.concat([portfolio, dailyPrices*shares], axis=1)                                                  # Adds the total value (Share Price * Share Count) to the portfolio for tracking
+    if ticker not in portfolio.columns:  # Checks if already in the portfolio as to not overwrite any existing holding
+        portfolio = pd.concat([portfolio, dailyPrices * shares],
+                              axis=1)  # Adds the total value (Share Price * Share Count) to the portfolio for tracking
     else:
-        portfolio[ticker][date:] += shares * dailyPrices                                                                # Adds the holding to an existing holding
+        portfolio[ticker][date:] += shares * dailyPrices  # Adds the holding to an existing holding
 
     # Checks for existing balance in balances and handles accordingly
     if ticker not in balances.columns:
@@ -187,7 +192,7 @@ def buy(ticker, date, shares, price = None, sector=None, flexCash=False):
 
 
 ### Sell ###
-def sell(ticker, date, shares, price = None, sector = None):
+def sell(ticker, date, shares, price=None, sector=None):
     # Assumes the position already exists (doesn't allow shorts yet)
     # 1) Checks if portfolio has enough shares to sell
     # 2)
@@ -203,18 +208,19 @@ def sell(ticker, date, shares, price = None, sector = None):
         if shares > holdings[ticker].shares:
             print('Error: Tried to sell', shares, 'shares of', ticker, 'but only had', holdings[ticker].shares)
             return None
-        dailyprices = get_stock(ticker)[date:]                                                                          # Gets the daily closing stock price for the past 5y
+        dailyprices = get_stock(ticker)[date:]  # Gets the daily closing stock price for the past 5y
 
     except:
         print('Not Found:', ticker)
         return None
 
     # Sets sales price if specified, uses closing price otherwise
-    if np.isnan(price):                                                                                                 # Lets you set a price if you bought for a specific price
+    if np.isnan(price):  # Lets you set a price if you bought for a specific price
         price = dailyprices[date]
 
     # Subtracts the sale amount from the position in portfolio and balance in balances, then updates share count
-    portfolio[ticker][date:] -= dailyprices[date:] * shares                                                             # Subtracts the value of the shares sold from future holdings
+    portfolio[ticker][date:] -= dailyprices[
+                                date:] * shares  # Subtracts the value of the shares sold from future holdings
     portfolio['Cash'].loc[date:] += shares * price
 
     balances['Cash'].loc[date:] += shares * price
@@ -249,41 +255,54 @@ def analytics(level='basic'):
 
     sumPortfolio = portfolio.fillna(method='pad').sum(axis=1)
     sumBalances = balances.fillna(0).sum(axis=1)
-    returnsPortfolio = (sumPortfolio - sumPortfolio.shift(1) - (sumBalances - sumBalances.shift(1))) / (sumPortfolio.shift(1))
+    returnsPortfolio = (sumPortfolio - sumPortfolio.shift(1) - (sumBalances - sumBalances.shift(1))) / (
+        sumPortfolio.shift(1))
     returnsPortfolio.name = 'Portfolio'
     returnsPortfolio.iloc[0] = 0
     normalizedPortfolio = (returnsPortfolio + 1).cumprod()
 
-    returnsMarket = get_stock('spy')[sumPortfolio.index[0]:].pct_change()*100
+    returnsMarket = get_stock('spy')[sumPortfolio.index[0]:].pct_change() * 100
     returnsMarket.name = 'SP500'
     returnsMarket.iloc[0] = 0
-    normalizedMarket = (returnsMarket/100 + 1).cumprod()
+    normalizedMarket = (returnsMarket / 100 + 1).cumprod()
 
     returnsPortfolioMarket = pd.concat([returnsPortfolio * 100, returnsMarket], axis=1)[1:] - riskFreeDaily
 
-    returnsWeekly = returnsPortfolioMarket.resample('W-MON').agg(lambda x: (1+x/100).prod()-1)*100
+    returnsWeekly = returnsPortfolioMarket.resample('W-MON').agg(lambda x: (1 + x / 100).prod() - 1) * 100
 
     # Returns
-    analytics['% Return-1M'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[normalizedPortfolio.index.get_loc(datetime.date.today()-datetime.timedelta(days=30), method='pad')] - 1) * 100
-    analytics['% Return-3M'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[normalizedPortfolio.index.get_loc(datetime.date.today()-datetime.timedelta(days=90), method='pad')] - 1) * 100
-    analytics['% Return-YTD'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[normalizedPortfolio.index.get_loc(datetime.date(datetime.date.today().year, 1, 1), method='pad')] - 1) * 100
-    analytics['% Return-1Y'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[normalizedPortfolio.index.get_loc(datetime.date.today()-datetime.timedelta(days=365), method='pad')] - 1) * 100
+    analytics['% Return-1M'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[
+        normalizedPortfolio.index.get_loc(datetime.date.today() - datetime.timedelta(days=30), method='pad')] - 1) * 100
+    analytics['% Return-3M'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[
+        normalizedPortfolio.index.get_loc(datetime.date.today() - datetime.timedelta(days=90), method='pad')] - 1) * 100
+    analytics['% Return-YTD'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[
+        normalizedPortfolio.index.get_loc(datetime.date(datetime.date.today().year, 1, 1), method='pad')] - 1) * 100
+    analytics['% Return-1Y'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[
+        normalizedPortfolio.index.get_loc(datetime.date.today() - datetime.timedelta(days=365),
+                                          method='pad')] - 1) * 100
     analytics['% Return-Max'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[0] - 1) * 100
 
-    analytics['% Return-3Y'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[normalizedPortfolio.index.get_loc(datetime.date.today()-datetime.timedelta(days=365*3), method='pad')] - 1) * 100
+    analytics['% Return-3Y'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[
+        normalizedPortfolio.index.get_loc(datetime.date.today() - datetime.timedelta(days=365 * 3),
+                                          method='pad')] - 1) * 100
 
-    analytics['% Return-CAGR'] = ((normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[0])**((1/((normalizedPortfolio.index[-1] - normalizedPortfolio.index[0]).total_seconds()/(86400*365)))) - 1) * 100
+    analytics['% Return-CAGR'] = ((normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[0]) ** (
+        (1 / ((normalizedPortfolio.index[-1] - normalizedPortfolio.index[0]).total_seconds() / (
+                86400 * 365)))) - 1) * 100
 
-    analytics['% Return-CAGR'] = ((normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[0])**((1/((normalizedPortfolio.index[-1] - normalizedPortfolio.index[0]).total_seconds()/(86400*365)))) - 1) * 100
+    analytics['% Return-CAGR'] = ((normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[0]) ** (
+        (1 / ((normalizedPortfolio.index[-1] - normalizedPortfolio.index[0]).total_seconds() / (
+                86400 * 365)))) - 1) * 100
     analytics['Portfolio Value'] = float(sumPortfolio.iloc[-1])
 
     # Statistics
     #   Beta = Adjusted Beta
     #   Alpha = Annualized Alpha (Based on Portfolio CAGR)
-    analytics['3Y Adj Beta'] = returnsWeekly['Portfolio'].cov(returnsWeekly.SP500)/returnsWeekly.SP500.var() * (2 / 3) + (1 / 3)
+    analytics['3Y Adj Beta'] = returnsWeekly['Portfolio'].cov(returnsWeekly.SP500) / returnsWeekly.SP500.var() * (
+            2 / 3) + (1 / 3)
     expected_return = (analytics['3Y Adj Beta'] * (marketRate - riskFree) + riskFree) * 100
     analytics['Alpha'] = (analytics['% Return-CAGR'] / 100 - expected_return / 100) * 100
-    analytics['Sharpe'] = float((analytics['% Return-CAGR'] / 100 - riskFree) / ((returnsPortfolio).std() * 252**0.5))
+    analytics['Sharpe'] = float((analytics['% Return-CAGR'] / 100 - riskFree) / ((returnsPortfolio).std() * 252 ** 0.5))
     analytics['Treynor'] = float((analytics['% Return-CAGR'] / 100 - riskFree) / analytics['3Y Adj Beta'])
 
     # Advanced Statistics
@@ -294,13 +313,15 @@ def analytics(level='basic'):
         drawdown['CumMax'] = drawdown.Prices.cummax()
         drawdown['Drawdown'] = (drawdown['Prices'] - drawdown['CumMax']) / drawdown['CumMax']
         analytics['Max Drawdown'] = float(drawdown['Drawdown'].min()) * 100
-        analytics['Std. Deviation'] = float(returnsPortfolioMarket.Portfolio.std() * 252**0.5)
-        analytics['R-Squared'] = (returnsPortfolioMarket.Portfolio.cov(returnsPortfolioMarket.SP500) / (returnsPortfolioMarket.Portfolio.std() * returnsPortfolioMarket.SP500.std()))**2
+        analytics['Std. Deviation'] = float(returnsPortfolioMarket.Portfolio.std() * 252 ** 0.5)
+        analytics['R-Squared'] = (returnsPortfolioMarket.Portfolio.cov(returnsPortfolioMarket.SP500) / (
+                returnsPortfolioMarket.Portfolio.std() * returnsPortfolioMarket.SP500.std())) ** 2
         analytics['Expected Return'] = expected_return
 
     returnsPortfolioMarket.to_excel('./outputs/returnsPortfolioMarket.xlsx')
 
-    return pd.Series(analytics, index = list(analytics.keys())).round(3)
+    return pd.Series(analytics, index=list(analytics.keys())).round(3)
+
 
 ### Sector Analytics ###
 def sector_analytics(level='basic', excel=False):
@@ -322,39 +343,51 @@ def sector_analytics(level='basic', excel=False):
     # Daily Return Data #
     analytics = {}
     returnsMarket = get_stock('spy')
-    returnsMarket = returnsMarket[portfolioBySector.index[0]:].pct_change()*100
+    returnsMarket = returnsMarket[portfolioBySector.index[0]:].pct_change() * 100
     returnsMarket.name = 'SP500'
 
-    returnsPortfolio = (portfolioBySector - portfolioBySector.shift(1) - (balancesBySector - balancesBySector.shift(1))) / (
-                portfolioBySector.shift(1) + (balancesBySector - balancesBySector.shift(1)))
+    returnsPortfolio = (portfolioBySector-portfolioBySector.shift(1) - (balancesBySector-balancesBySector.shift(1))) \
+                       / portfolioBySector.shift(1)
     returnsPortfolio.name = 'Portfolio'
     returnsPortfolio.iloc[0] = 0
     normalizedPortfolio = (returnsPortfolio + 1).cumprod()
 
     returnsPortfolioMarket = pd.concat([returnsPortfolio * 100, returnsMarket], axis=1)[1:]
-    excessReturnsPortfolioMarket = returnsPortfolioMarket - riskFreeDaily*100
+    excessReturnsPortfolioMarket = returnsPortfolioMarket - riskFreeDaily * 100
 
-    excessReturnsWeekly = excessReturnsPortfolioMarket.resample('W-MON').agg(lambda x: (1+x/100).prod()-1)*100
-
+    excessReturnsWeekly = excessReturnsPortfolioMarket.resample('W-MON').agg(lambda x: (1 + x / 100).prod() - 1) * 100
 
     # Returns #
     for sector in normalizedPortfolio.columns:
         position = {}
-        position['% Return-1M'] = (normalizedPortfolio[sector].iloc[-1] / normalizedPortfolio[sector].iloc[normalizedPortfolio[sector].index.get_loc(datetime.date.today()-datetime.timedelta(days=30), method='pad')] - 1) * 100
-        position['% Return-3M'] = (normalizedPortfolio[sector].iloc[-1] / normalizedPortfolio[sector].iloc[normalizedPortfolio[sector].index.get_loc(datetime.date.today()-datetime.timedelta(days=90), method='pad')] - 1) * 100
-        position['% Return-YTD'] = (normalizedPortfolio[sector].iloc[-1] / normalizedPortfolio[sector].iloc[normalizedPortfolio[sector].index.get_loc(datetime.date(datetime.date.today().year, 1, 1), method='pad')] - 1) * 100
-        position['% Return-1Y'] = (normalizedPortfolio[sector].iloc[-1] / normalizedPortfolio[sector].iloc[normalizedPortfolio[sector].index.get_loc(datetime.date.today()-datetime.timedelta(days=365), method='pad')] - 1) * 100
-        position['% Return-Max'] = (normalizedPortfolio[sector].iloc[-1] / normalizedPortfolio[sector].iloc[0] - 1) * 100
-        position['% Return-CAGR'] = ((normalizedPortfolio[sector].iloc[-1] / normalizedPortfolio[sector].iloc[0])**((1/((normalizedPortfolio[sector].index[-1] - normalizedPortfolio[sector].index[0]).total_seconds()/(86400*365)))) - 1) * 100
+        position['% Return-1M'] = (normalizedPortfolio[sector].iloc[-1] / normalizedPortfolio[sector].iloc[
+            normalizedPortfolio[sector].index.get_loc(datetime.date.today() - datetime.timedelta(days=30),
+                                                      method='pad')] - 1) * 100
+        position['% Return-3M'] = (normalizedPortfolio[sector].iloc[-1] / normalizedPortfolio[sector].iloc[
+            normalizedPortfolio[sector].index.get_loc(datetime.date.today() - datetime.timedelta(days=90),
+                                                      method='pad')] - 1) * 100
+        position['% Return-YTD'] = (normalizedPortfolio[sector].iloc[-1] / normalizedPortfolio[sector].iloc[
+            normalizedPortfolio[sector].index.get_loc(datetime.date(datetime.date.today().year, 1, 1),
+                                                      method='pad')] - 1) * 100
+        position['% Return-1Y'] = (normalizedPortfolio[sector].iloc[-1] / normalizedPortfolio[sector].iloc[
+            normalizedPortfolio[sector].index.get_loc(datetime.date.today() - datetime.timedelta(days=365),
+                                                      method='pad')] - 1) * 100
+        position['% Return-Max'] = (normalizedPortfolio[sector].iloc[-1] / normalizedPortfolio[sector].iloc[
+            0] - 1) * 100
+        position['% Return-CAGR'] = ((normalizedPortfolio[sector].iloc[-1] / normalizedPortfolio[sector].iloc[0]) ** ((
+                1 / ((normalizedPortfolio[sector].index[-1] - normalizedPortfolio[sector].index[
+            0]).total_seconds() / (86400 * 365)))) - 1) * 100
         position['Sector Cap'] = float(portfolioBySector.iloc[-1][sector])
 
         # Statistics #
         #   Beta = Adjusted Beta
         #   Alpha = Annualized Alpha (Based on Portfolio CAGR)
-        position['Beta'] = excessReturnsWeekly[sector].cov(excessReturnsWeekly.SP500)/excessReturnsWeekly.SP500.var() * (2 / 3) + (1 / 3)
+        position['Beta'] = excessReturnsWeekly[sector].cov(
+            excessReturnsWeekly.SP500) / excessReturnsWeekly.SP500.var() * (2 / 3) + (1 / 3)
         expected_return = (position["Beta"] * (marketRate - riskFree) + riskFree) * 100
         position['Alpha'] = (position['% Return-CAGR'] / 100 - expected_return / 100) * 100
-        position['Sharpe'] = float((position['% Return-CAGR'] / 100 - riskFree) / ((returnsPortfolio[sector] / 100).std() * 252**0.5))
+        position['Sharpe'] = float(
+            (position['% Return-CAGR'] / 100 - riskFree) / ((returnsPortfolio[sector]).std() * 252 ** 0.5))
         position['Treynor'] = float((position['% Return-CAGR'] / 100 - riskFree) / position['Beta'])
 
         # Advanced Statistics #
@@ -365,16 +398,17 @@ def sector_analytics(level='basic', excel=False):
             drawdown['CumMax'] = drawdown.Prices.cummax()
             drawdown['Drawdown'] = (drawdown['Prices'] - drawdown['CumMax']) / drawdown['CumMax']
             position['Max Drawdown'] = float(drawdown['Drawdown'].min()) * 100
-            position['Std. Deviation'] = float(returnsPortfolioMarket[sector].std(axis=0) * (252**0.5))
-            position['R-Squared'] = (returnsPortfolioMarket[sector].cov(returnsPortfolioMarket.SP500) / (returnsPortfolioMarket[sector].std(axis=0) * returnsPortfolioMarket.SP500.std()))**2
+            position['Std. Deviation'] = float(returnsPortfolioMarket[sector].std(axis=0) * (252 ** 0.5))
+            position['R-Squared'] = (returnsPortfolioMarket[sector].cov(returnsPortfolioMarket.SP500) / (
+                    returnsPortfolioMarket[sector].std(axis=0) * returnsPortfolioMarket.SP500.std())) ** 2
             position['Expected Return'] = expected_return
 
         analytics[sector] = position
 
-    output = pd.DataFrame(analytics, index = list(position.keys())).round(3)
+    output = pd.DataFrame(analytics, index=list(position.keys())).round(3)
     output2 = normalizedPortfolio
-    output3 = pd.DataFrame(requests.get(fmpurl+'historical-price-full/SPY?serietype=line').json()['historical']).set_index('date')
-
+    output3 = pd.DataFrame(
+        requests.get(fmpurl + 'historical-price-full/SPY?serietype=line').json()['historical']).set_index('date')
 
     if excel:
         output.to_excel('./outputs/sectorbreakdown.xlsx')
@@ -382,8 +416,9 @@ def sector_analytics(level='basic', excel=False):
         output3.to_excel('./outputs/market.xlsx')
     return output
 
+
 ### Performance ###
-def performance(ticker, select_date = 'present'):
+def performance(ticker, select_date='present'):
     # This function gives the performance of a certain holding
     #   -Stock Price Return: Gives the performance based on average share price
     #   -Average Share Price: Gives the average holding price at that date
@@ -393,69 +428,86 @@ def performance(ticker, select_date = 'present'):
     except KeyError:
         return f'{ticker} not found'
     returnsMarket = get_stock('spy')
-    returnsMarket = returnsMarket[stock_value.index[0]:].pct_change()*100
+    returnsMarket = returnsMarket[stock_value.index[0]:].pct_change() * 100
     returnsMarket.name = 'SP500'
     amountinvested = holdings[ticker].baseposition.reindex(stock_value.index, method='pad')
     normalizedPortfolio = stock_value.divide(amountinvested, axis=0)
-    normalized_returns = normalizedPortfolio.pct_change()*100
+    normalized_returns = normalizedPortfolio.pct_change() * 100
     normalized_returns.name = ticker
     returnsPortfolioMarket = pd.concat([normalized_returns, returnsMarket], axis=1) - riskFreeDaily
     returnsPortfolioMarket = returnsPortfolioMarket[1:]
 
     # Returns
-    analytics['% Return-1M'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[normalizedPortfolio.index.get_loc(datetime.date.today()-datetime.timedelta(days=30), method='pad')] - 1) * 100
-    analytics['% Return-3M'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[normalizedPortfolio.index.get_loc(datetime.date.today()-datetime.timedelta(days=90), method='pad')] - 1) * 100
-    analytics['% Return-YTD'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[normalizedPortfolio.index.get_loc(datetime.date(datetime.date.today().year, 1, 1), method='pad')] - 1) * 100
-    analytics['% Return-1Y'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[normalizedPortfolio.index.get_loc(datetime.date.today()-datetime.timedelta(days=365), method='pad')] - 1) * 100
+    analytics['% Return-1M'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[
+        normalizedPortfolio.index.get_loc(datetime.date.today() - datetime.timedelta(days=30), method='pad')] - 1) * 100
+    analytics['% Return-3M'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[
+        normalizedPortfolio.index.get_loc(datetime.date.today() - datetime.timedelta(days=90), method='pad')] - 1) * 100
+    analytics['% Return-YTD'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[
+        normalizedPortfolio.index.get_loc(datetime.date(datetime.date.today().year, 1, 1), method='pad')] - 1) * 100
+    analytics['% Return-1Y'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[
+        normalizedPortfolio.index.get_loc(datetime.date.today() - datetime.timedelta(days=365),
+                                          method='pad')] - 1) * 100
     analytics['% Return-Max'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio[0] - 1) * 100
-    analytics['% Return-CAGR'] = ((normalizedPortfolio[-1] / normalizedPortfolio[0])**((1/((normalizedPortfolio.index[-1] - normalizedPortfolio.index[0]).total_seconds()/(86400*365)))) - 1) * 100
-    analytics['Beta'] = returnsPortfolioMarket[ticker].cov(returnsPortfolioMarket.SP500)/returnsPortfolioMarket.SP500.var() * (2 / 3) + (1 / 3)
+    analytics['% Return-CAGR'] = ((normalizedPortfolio[-1] / normalizedPortfolio[0]) ** (
+        (1 / ((normalizedPortfolio.index[-1] - normalizedPortfolio.index[0]).total_seconds() / (
+                86400 * 365)))) - 1) * 100
+    analytics['Beta'] = returnsPortfolioMarket[ticker].cov(
+        returnsPortfolioMarket.SP500) / returnsPortfolioMarket.SP500.var() * (2 / 3) + (1 / 3)
     expected_return = (analytics["Beta"] * (marketRate - riskFree) + riskFree) * 100
     analytics['Alpha'] = (analytics['% Return-CAGR'] / 100 - expected_return / 100) * 100
 
     return pd.Series(analytics, index=list(analytics.keys())).round(3)
 
+
 ### Correlation ###
-def correlation(ticker = None, index = 'SPX', sector = None, commodity = None, econ = None, treas = None):
+def correlation(ticker=None, index='SPX', sector=None, commodity=None, econ=None, treas=None):
     # Gives the correlation of a given ticker to a given index, defaulting as
     # the SP500 for a total market proxy. Designed to be used to get sector
     # correlations to their respective index
     outputs = pd.DataFrame()
-    data_ticker = get_stock(ticker)                                                                                     # Gets the daily closing price of a stock starting on the buy date
+    data_ticker = get_stock(ticker)  # Gets the daily closing price of a stock starting on the buy date
     data_ticker = data_ticker
     data_index = get_index(index)
     index_coef, index_int, index_corr, index_p, index_std = linregress(data_index, data_ticker)
-    index_vals = pd.Series({'Coefficient':index_coef, 'Intercept':index_int, 'Correlation':index_corr, 'R-Squared':index_corr**2})
+    index_vals = pd.Series(
+        {'Coefficient': index_coef, 'Intercept': index_int, 'Correlation': index_corr, 'R-Squared': index_corr ** 2})
     index_vals.name = 'Index: ' + index
     outputs = outputs.append(index_vals, sort=False)
     if sector != None:
-            data_sector = get_index(sector)
-            sector_coef, sector_int, sector_corr, sector_p, sector_std = linregress(data_sector, data_ticker)
-            sector_vals = pd.Series({'Coefficient':sector_coef, 'Intercept':sector_int, 'Correlation':sector_corr, 'R-Squared':sector_corr**2})
-            sector_vals.name = 'Sector: ' + sector
-            outputs = outputs.append(sector_vals, sort=False)
+        data_sector = get_index(sector)
+        sector_coef, sector_int, sector_corr, sector_p, sector_std = linregress(data_sector, data_ticker)
+        sector_vals = pd.Series({'Coefficient': sector_coef, 'Intercept': sector_int, 'Correlation': sector_corr,
+                                 'R-Squared': sector_corr ** 2})
+        sector_vals.name = 'Sector: ' + sector
+        outputs = outputs.append(sector_vals, sort=False)
     if commodity != None:
         data_commodity = get_data(commodity)
         data_commodity = data_commodity.reindex(data_ticker.index, method='pad')
-        commodity_coef, commodity_int, commodity_corr, commodity_p, commodity_std = linregress(data_commodity, data_ticker)
-        commodity_vals = pd.Series({'Coefficient':commodity_coef, 'Intercept':commodity_int, 'Correlation':commodity_corr, 'R-Squared':commodity_corr**2})
+        commodity_coef, commodity_int, commodity_corr, commodity_p, commodity_std = linregress(data_commodity,
+                                                                                               data_ticker)
+        commodity_vals = pd.Series(
+            {'Coefficient': commodity_coef, 'Intercept': commodity_int, 'Correlation': commodity_corr,
+             'R-Squared': commodity_corr ** 2})
         commodity_vals.name = 'Commodity: ' + commodity
         outputs = outputs.append(commodity_vals, sort=False)
     if econ != None:
         data_econ = get_data(econ)
-        data_econ = data_econ.reindex(index = data_ticker.index, method = 'pad')
+        data_econ = data_econ.reindex(index=data_ticker.index, method='pad')
         econ_coef, econ_int, econ_corr, econ_p, econ_std = linregress(data_econ, data_ticker)
-        econ_vals = pd.Series({'Coefficient':econ_coef, 'Intercept':econ_int, 'Correlation':econ_corr, 'R-Squared':econ_corr**2})
+        econ_vals = pd.Series(
+            {'Coefficient': econ_coef, 'Intercept': econ_int, 'Correlation': econ_corr, 'R-Squared': econ_corr ** 2})
         econ_vals.name = 'Econ: ' + econ
         outputs = outputs.append(econ_vals, sort=False)
     if treas != None:
         data_treas = get_treas(treas)
-        data_treas = data_treas.reindex(index = data_ticker.index, method = 'pad')
+        data_treas = data_treas.reindex(index=data_ticker.index, method='pad')
         treas_coef, treas_int, treas_corr, treas_p, treas_std = linregress(data_treas, data_ticker)
-        treas_vals = pd.Series({'Coefficient':treas_coef, 'Intercept':treas_int, 'Correlation':treas_corr, 'R-Squared':treas_corr**2})
+        treas_vals = pd.Series({'Coefficient': treas_coef, 'Intercept': treas_int, 'Correlation': treas_corr,
+                                'R-Squared': treas_corr ** 2})
         treas_vals.name = 'Treas: ' + treas
         outputs = outputs.append(treas_vals, sort=False)
     return outputs
+
 
 ### Correlation Matrix ###
 def correlation_matrix(group_by="portfolio", excel=False):
@@ -464,7 +516,7 @@ def correlation_matrix(group_by="portfolio", excel=False):
         sumPortfolio = aPortfolio.sum(axis=1)
         netcash_reindexed = netcash.reindex(aPortfolio.index, method='pad')
         normalizedPortfolio = (sumPortfolio / netcash_reindexed)
-        normalized_returns = normalizedPortfolio.pct_change()*100
+        normalized_returns = normalizedPortfolio.pct_change() * 100
         normalized_returns.name = 'Portfolio'
         first_index = normalized_returns.first_valid_index()
         normalized_returns = normalized_returns[first_index:]
@@ -484,10 +536,12 @@ def correlation_matrix(group_by="portfolio", excel=False):
                 if len(suminvested) == 0:
                     suminvested = holdings[ticker].baseposition
                 else:
-                    suminvested = suminvested.reindex(suminvested.index.union(holdings[ticker].baseposition.index), method='pad')
+                    suminvested = suminvested.reindex(suminvested.index.union(holdings[ticker].baseposition.index),
+                                                      method='pad')
                     base_reindexed = holdings[ticker].baseposition.reindex(suminvested.index, method='pad')
-                    suminvested = suminvested.add(base_reindexed, fill_value = 0)
-            sector_netinvested = sector_netinvested.reindex(sector_netinvested.index.union(suminvested.index), method='pad')
+                    suminvested = suminvested.add(base_reindexed, fill_value=0)
+            sector_netinvested = sector_netinvested.reindex(sector_netinvested.index.union(suminvested.index),
+                                                            method='pad')
             suminvested = suminvested.reindex(sector_netinvested.index, method='pad')
             sector_netinvested[sector] = suminvested
             sector_netinvested = sector_netinvested.reindex(portfolio_bysector.index, method='pad')
@@ -508,11 +562,12 @@ def correlation_matrix(group_by="portfolio", excel=False):
 
     return output
 
+
 ### Ratios ###
 def ratios(method='total'):
     if method == 'total':
         notfound = 0
-        ratios = {'pe':0, 'pb':0, 'dyield':0}
+        ratios = {'pe': 0, 'pb': 0, 'dyield': 0}
         cap = 0
         tickers = set(portfolio.columns.tolist())
         for ticker in tickers:
@@ -533,14 +588,16 @@ def ratios(method='total'):
         ratios /= cap
     return ratios
 
+
 ### Historical Analytics ###
 def historical_analytics(date):
     # This should return basic analytics for a certain date
     #   -May not be operational until AlphaVantage is linked
     pass
 
+
 ### Chart ###
-def chart(topic, beta_method='market', period = 'ytd'):
+def chart(topic, beta_method='market', period='ytd'):
     # This should return a chart of the desired stat:
     #   -Holdings: Probably a pie chart by sector
     #   -Returns: Bar chart of the returns over
@@ -592,8 +649,9 @@ def chart(topic, beta_method='market', period = 'ytd'):
     else:
         return 'Invalid argument passed as topic in chart(topic)'
 
+
 ### Holdings ###
-def holdingsStatistics(date = 'present'):
+def holdingsStatistics(date='present'):
     # Returns every holding in the portfolio:
     #   -Ticker and Company Name
     #   -Price and Shares Purchased (Price here is average holding price)
@@ -602,8 +660,9 @@ def holdingsStatistics(date = 'present'):
     #   -Dividend Yield
     pass
 
+
 ### Holdings Sector ###
-def holdings_sector(date = 'present'):
+def holdings_sector(date='present'):
     # Returns the same metrics as holdings, but broken into sectors
     pass
 
