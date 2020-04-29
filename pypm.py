@@ -416,9 +416,26 @@ def sector_analytics(level='basic', excel=False):
         output3.to_excel('./outputs/market.xlsx')
     return output
 
+def performance(method = 'overall', benchmark = 'spy'):
+    #   - Returns over multiple time periods (all methods)
+    #   - Contribution of stock picks (individual, both)
+    #   - Contribution of sector weighting (sector, both)
+    #   - Methods:
+    #           - Overall: Performance of entire portfolio
+    #           - Individual: Performance and contribution by holding
+    #           - Sector: Performance and contribution by sector
+    #           - Both: Performance and contribution by individual picks and asset allocation
+
+    if method == 'overall':
+        pass
+    elif method == 'individual':
+        pass
+    elif method == 'sector':
+        pass
+    return 0
 
 ### Performance ###
-def performance(ticker, select_date='present'):
+def performancePosition(ticker, select_date='present'):
     # This function gives the performance of a certain holding
     #   -Stock Price Return: Gives the performance based on average share price
     #   -Average Share Price: Gives the average holding price at that date
