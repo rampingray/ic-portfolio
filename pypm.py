@@ -426,13 +426,53 @@ def performance(method = 'overall', benchmark = 'spy'):
     #           - Sector: Performance and contribution by sector
     #           - Both: Performance and contribution by individual picks and asset allocation
 
+    global portfolio
+    global balances
+
     if method == 'overall':
         pass
     elif method == 'individual':
         pass
     elif method == 'sector':
-        pass
-    return 0
+
+        portfolioBySector = pd.DataFrame()
+        balancesBySector = pd.DataFrame()
+
+        if not portfolio.index.equals(balances.index):
+            newIndex = portfolio.index.union(balances.index)
+            portfolio = portfolio.reindex(newIndex, method='pad')
+            balances = balances.reindex(newIndex, method='pad')
+
+        for sector, holdings in sectorHoldings.items():
+            portfolioBySector[sector] = portfolio[holdings].sum(axis=1)
+            balancesBySector[sector] = balances[holdings].sum(axis=1)
+
+        # Daily Returns and Performance for Indices #
+        returnsIndices = pd.DataFrame()
+        for sector, holdings in sectorHoldings.items():
+            returnsSector = get_index(sector)
+            returnsSector = returnsSector[portfolioBySector.index[0]:].pct_change()
+            returnsSector.name = sector
+            returnsIndices[sector] = returnsSector
+        returnsIndices.iloc[0] = 0
+        normalizedIndices = (returnsIndices +1).cumprod()
+
+        # Daily Returns and Performance for Portfolio by Sector #
+        returnsPortfolio = (portfolioBySector - portfolioBySector.shift(1) - (
+                    balancesBySector - balancesBySector.shift(1))) \
+                           / portfolioBySector.shift(1)
+        returnsPortfolio.name = 'Portfolio'
+        returnsPortfolio.iloc[0] = 0
+        normalizedPortfolio = (returnsPortfolio + 1).cumprod()
+
+        # Normalized Active Returns and Performance by Sector #
+        normalizedActive = pd.DataFrame()
+        for sector, holdings in sectorHoldings.items():
+            normalizedActive[sector] = normalizedPortfolio[sector] - normalizedIndices[sector]
+        normalizedActive *= 100
+        normalizedActive.to_excel('./outputs/activePerformance.xlsx')
+
+    return normalizedActive
 
 ### Performance ###
 def performancePosition(ticker, select_date='present'):
@@ -698,5 +738,6 @@ if __name__ == '__main__':
         import_excel('./inputs/transactions_5Y.xlsx', flexCash=True)
 
     print(analytics('advanced'))
-    print(ratios())
-    print(sector_analytics('advanced', True))
+    # print(ratios())
+    # print(sector_analytics('advanced', True))
+    print(performance('sector'))

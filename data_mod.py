@@ -95,7 +95,8 @@ def get_index(index):
     'utilities':'xlu',
     'realestate':'xlre',
     'reits':'xlre',
-    'macro':'vt'
+    'macro':'vt',
+    'fixed income':'agg'
     }
 
     try:
@@ -128,6 +129,7 @@ def get_stocks(tickerList):
             errors.append(ticker)
 
     print('Error tickers:', errors)
+    return dataOut
 
 
 def get_ratio(ticker, ratio):
