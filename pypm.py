@@ -3,6 +3,7 @@
 ######################
 
 from data_mod import *
+import generator
 import datetime
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -15,16 +16,6 @@ import sys
 ### Constants ###
 #################
 
-### Portfolio and More###
-portfolio = pd.DataFrame()  # Dataframe giving portfolio balances of each holding
-balances = pd.DataFrame()  # Series holding the balance that created each holding in "portfolio"
-holdings = {}  # Dictionary holding instances of Holding indexed by strings of ticker
-
-### Sector Holdings ###
-sectorHoldings = {'Staples': [], 'Discretionary': [], 'Energy': [],
-                  'REITs': [], 'Financials': [], 'Healthcare': [], 'Industrials': [],
-                  'Utilities': [], 'Macro': [], 'Technology': [], 'Fixed Income': []}
-
 ### Risk Free Rate ###
 riskFree = get_treas('10 yr')[-1] / 100  # Annual risk free rate (percentage)
 riskFreeDaily = ((riskFree + 1) ** (1 / 252) - 1)  # Converts annual risk free to daily (percentage)
@@ -32,205 +23,24 @@ riskFreeDaily = ((riskFree + 1) ** (1 / 252) - 1)  # Converts annual risk free t
 ### Market Rate ###
 marketRate = 0.08  # Open to being changed
 
-
-#########################
-### Class Definitions ###
-#########################
-
-### Holding Class ###
-class Holding():
-    # Simply holds the current cost basis (price) and share count (shares)
-
-    def __init__(self, ticker, shares, price):
-        self.ticker = ticker
-        self.shares = shares
-        self.price = price
-
-    def __str__(self):
-        return f'Holding {self.shares} shares of {self.ticker} at ${self.price}'
-
-    def buy(self, shares, price):
-        self.price = (self.price * self.shares + price * shares) / (self.shares + shares)
-        self.shares += shares
-
-    def sell(self, shares):
-        self.shares -= shares
-
-
 ############################
 ### Function Definitions ###
 ############################
 
-### Import Excel ###
-def import_excel(filename, flexCash=False):
-    # Imports the excel file and turns it into a DataFrame of Daily Prices
+### Load Data ###
+def load_data(type = 'excel'):
+    if type == 'excel':
+        return generator.import_excel('./inputs/transactions_5Y.xlsx', flexCash=True, savePickle=True)
 
-    transactions = pd.read_excel(filename)  # Reads the excel file as a pandas dataframe
-    transactions.Action = transactions.Action.str.lower()  # The following 2 lines make the columns lowercase so they're easier to use
-    transactions.Ticker = transactions.Ticker.str.lower()
-    transactions = transactions.sort_values('Date')  # Sorts Transactions by Date
-    for index, trade in transactions.iterrows():  # Iterates over the trades in the excel sheet and adds them to the portfolio
-        if trade.Action == 'buy':
-            buy(trade.Ticker, trade.Date, trade.Shares, trade.Price, trade.Sector, flexCash)
-        elif trade.Action == 'sell':
-            sell(trade.Ticker, trade.Date, trade.Shares, trade.Price)
-        elif trade.Action == 'deposit':
-            deposit(trade.Price, trade.Date)
-        elif trade.Action == 'withdraw':
-            withdraw(trade.Price, trade.Date)
-        else:
-            print('Invalid Order Type For:', trade.Ticker)
+    elif type == 'pickle':
+        return generator.import_pickle('./pickles/portfolio.pkl', './pickles/balances.pkl', './pickles/holdings.pkl', './pickles/sectorHoldings.pkl')
 
-
-### Deposit ###
-def deposit(cash, date):
-    global portfolio
-    global balances
-
-    # Adds cash to the cash position in portfolio
-    if 'Cash' in portfolio.columns:
-        portfolio['Cash'].loc[date:] += cash
     else:
-        portfolio['Cash'].loc[date] = cash
-
-    # Adds cash to the cash balance in balances
-    if 'Cash' in balances.columns:
-        balances['Cash'].loc[date:] += cash
-    else:
-        balances['Cash'].loc[date] = cash
-
-
-### Withdraw ###
-def withdraw(cash, date):
-    global portfolio
-    global balances
-
-    # Withdraws cash from the cash position in portfolio
-    portfolio['Cash'].loc[date:] -= cash
-
-    # Withdraws cash from the cash balance in balances
-    balances['Cash'].loc[date:] -= cash
-
-
-### Buy ###
-def buy(ticker, date, shares, price=None, sector=None, flexCash=False):
-    # 1) Handles running out of cash or flexCash scneario
-    # 2) Adds stock to sector dictionary if it is not there already
-    # 3) Adds stock to balances/portfolio if it is not in either already
-    # 4) Adds stock to sector dictionary if it is not there already
-    # 5) Updates the position/balance with new purchase data
-
-    global portfolio
-    global sectorHoldings
-    global balances
-
-    # Tries to get pricing data and add ticker to sectorHoldings, returns None if not found
-    try:
-        dailyPrices = get_stock(ticker)[date:]  # Gets the daily closing price for the past 20ish years
-        dailyPrices.name = ticker  # Renames the Pandas Series with the ticker before appending to the portfolio
-        if sector != None:  # Adds the given ticker to the sector's list if it's not in there already
-            if ticker not in sectorHoldings[sector]:
-                sectorHoldings[sector].append(ticker)
-    except:
-        print('Not Found:', ticker)
-        return None
-
-    # Sets the purchase price if specified, otherwise sets the purchase price as the daily close
-    if not np.isnan(price):
-        dailyPrices.loc[date] = price
-    else:
-        price = dailyPrices.loc[date]
-
-    # Checks if portfolio / balances have entries for cash
-    if 'Cash' not in portfolio.columns and 'Cash' not in balances.columns:  # Checks if already in the portfolio as to not overwrite any existing holding
-        portfolio.loc[date, 'Cash'] = 0
-        balances.loc[date, 'Cash'] = 0
-    elif 'Cash' not in portfolio.columns:
-        portfolio.loc[date, 'Cash'] = 0
-    elif 'Cash' not in balances.columns:
-        balances.loc[date, 'Cash'] = 0
-
-    # Reindexes balances and portfolio with each other
-    if not balances.index.equals(portfolio.index):
-        newIndex = balances.index.union(portfolio.index)
-        portfolio = portfolio.reindex(newIndex, method='pad')
-        balances = balances.reindex(newIndex, method='pad')
-
-    # Checks for enough cash and handles problem according to flexCash setting
-    if (portfolio['Cash'].loc[date] < price * shares) and flexCash == False:
-        print('Not enough cash to buy', ticker, "on", str(date))
-        return None
-    elif (portfolio['Cash'].loc[date] < price * shares) and flexCash == True:
-        deposit(price * shares - portfolio['Cash'].loc[date], date)
-
-    # Removes the purchase price from cash balances in balances and cash position in portfolio
-    portfolio['Cash'].loc[date:] -= price * shares
-    balances['Cash'].loc[date:] -= price * shares
-
-    # Checks for existing position in portfolio and handles accordingly
-    if ticker not in portfolio.columns:  # Checks if already in the portfolio as to not overwrite any existing holding
-        portfolio = pd.concat([portfolio, dailyPrices * shares],
-                              axis=1)  # Adds the total value (Share Price * Share Count) to the portfolio for tracking
-    else:
-        portfolio[ticker][date:] += shares * dailyPrices  # Adds the holding to an existing holding
-
-    # Checks for existing balance in balances and handles accordingly
-    if ticker not in balances.columns:
-        balances.loc[date:, ticker] = price * shares
-    else:
-        balances[ticker][date:] += price * shares
-
-    # Checks for existing holding value and handles accordingly
-    if ticker in holdings:
-        holdings[ticker].buy(shares, price)
-    else:
-        holdings[ticker] = Holding(ticker, shares, price)
-
-    # Fills out any missing data (might be able to delete)
-    portfolio = portfolio.fillna(method='pad').fillna(0)
-    balances = balances.fillna(method='pad').fillna(0)
-
-
-### Sell ###
-def sell(ticker, date, shares, price=None, sector=None):
-    # Assumes the position already exists (doesn't allow shorts yet)
-    # 1) Checks if portfolio has enough shares to sell
-    # 2)
-    # 3)
-
-    global portfolio
-    global balances
-
-    # Tries to get pricing data for ticker, returns None if fails (should always succeed in theory)
-    try:
-
-        # Checks if portfolio has enough shares to sell
-        if shares > holdings[ticker].shares:
-            print('Error: Tried to sell', shares, 'shares of', ticker, 'but only had', holdings[ticker].shares)
-            return None
-        dailyprices = get_stock(ticker)[date:]  # Gets the daily closing stock price for the past 5y
-
-    except:
-        print('Not Found:', ticker)
-        return None
-
-    # Sets sales price if specified, uses closing price otherwise
-    if np.isnan(price):  # Lets you set a price if you bought for a specific price
-        price = dailyprices[date]
-
-    # Subtracts the sale amount from the position in portfolio and balance in balances, then updates share count
-    portfolio[ticker][date:] -= dailyprices[
-                                date:] * shares  # Subtracts the value of the shares sold from future holdings
-    portfolio['Cash'].loc[date:] += shares * price
-
-    balances['Cash'].loc[date:] += shares * price
-    balances[ticker].loc[date:] -= shares * holdings[ticker].price
-
-    holdings[ticker].sell(shares)
+        print('Unknown Type')
 
 
 ### Analytics ###
-def analytics(level='basic'):
+def analytics(portfolio, balances, level='basic'):
     # This should return key portfolio stats if 'basic':
     #   -Performance: Alpha, beta, sharpe, treynor
     #   -Returns: 1M, 3M, YTD, 1Y, Max *If the data goes back this far
@@ -240,9 +50,6 @@ def analytics(level='basic'):
     #   -R-Squared: Shows significance of beta and alpha
     #   -Expected Return: Calculated Cost of Equity for Portfolio
     #   -Std. Deviation of Returns
-
-    global portfolio
-    global balances
 
     # Daily Return Data #
     analytics = {}
@@ -324,33 +131,15 @@ def analytics(level='basic'):
 
 
 ### Sector Analytics ###
-def sector_analytics(level='basic', excel=False):
-    global portfolio
-    global balances
+def sector_analytics(portfolio, balances, level='basic', excel=False):
 
-    portfolioBySector = pd.DataFrame()
-    balancesBySector = pd.DataFrame()
-
-    if not portfolio.index.equals(balances.index):
-        newIndex = portfolio.index.union(balances.index)
-        portfolio = portfolio.reindex(newIndex, method='pad')
-        balances = balances.reindex(newIndex, method='pad')
-
-    for sector, holdings in sectorHoldings.items():
-        portfolioBySector[sector] = portfolio[holdings].sum(axis=1)
-        balancesBySector[sector] = balances[holdings].sum(axis=1)
+    returnsPortfolio, normalizedPortfolio = generator.sectorize(portfolio, balances)
 
     # Daily Return Data #
     analytics = {}
     returnsMarket = get_stock('spy')
-    returnsMarket = returnsMarket[portfolioBySector.index[0]:].pct_change() * 100
+    returnsMarket = returnsMarket[returnsPortfolio.index[0]:].pct_change() * 100
     returnsMarket.name = 'SP500'
-
-    returnsPortfolio = (portfolioBySector-portfolioBySector.shift(1) - (balancesBySector-balancesBySector.shift(1))) \
-                       / portfolioBySector.shift(1)
-    returnsPortfolio.name = 'Portfolio'
-    returnsPortfolio.iloc[0] = 0
-    normalizedPortfolio = (returnsPortfolio + 1).cumprod()
 
     returnsPortfolioMarket = pd.concat([returnsPortfolio * 100, returnsMarket], axis=1)[1:]
     excessReturnsPortfolioMarket = returnsPortfolioMarket - riskFreeDaily * 100
@@ -377,7 +166,6 @@ def sector_analytics(level='basic', excel=False):
         position['% Return-CAGR'] = ((normalizedPortfolio[sector].iloc[-1] / normalizedPortfolio[sector].iloc[0]) ** ((
                 1 / ((normalizedPortfolio[sector].index[-1] - normalizedPortfolio[sector].index[
             0]).total_seconds() / (86400 * 365)))) - 1) * 100
-        position['Sector Cap'] = float(portfolioBySector.iloc[-1][sector])
 
         # Statistics #
         #   Beta = Adjusted Beta
@@ -416,8 +204,8 @@ def sector_analytics(level='basic', excel=False):
         output3.to_excel('./outputs/market.xlsx')
     return output
 
-def performance(method = 'overall', benchmark = 'spy'):
-    #   - Returns over multiple time periods (all methods)
+def performance(portfolio, balances, method = 'overall', benchmark = 'spy'):
+    #   - Returns over multiple time periods [1M, 3M, YTD, 1Y, Max] (all methods)
     #   - Contribution of stock picks (individual, both)
     #   - Contribution of sector weighting (sector, both)
     #   - Methods:
@@ -426,53 +214,27 @@ def performance(method = 'overall', benchmark = 'spy'):
     #           - Sector: Performance and contribution by sector
     #           - Both: Performance and contribution by individual picks and asset allocation
 
-    global portfolio
-    global balances
-
     if method == 'overall':
         pass
     elif method == 'individual':
         pass
     elif method == 'sector':
+        # Normalized Active Returns and Performance by Sector
 
-        portfolioBySector = pd.DataFrame()
-        balancesBySector = pd.DataFrame()
-
-        if not portfolio.index.equals(balances.index):
-            newIndex = portfolio.index.union(balances.index)
-            portfolio = portfolio.reindex(newIndex, method='pad')
-            balances = balances.reindex(newIndex, method='pad')
-
-        for sector, holdings in sectorHoldings.items():
-            portfolioBySector[sector] = portfolio[holdings].sum(axis=1)
-            balancesBySector[sector] = balances[holdings].sum(axis=1)
-
-        # Daily Returns and Performance for Indices #
         returnsIndices = pd.DataFrame()
+        normalizedIndices = pd.DataFrame()
+
+        returnsPortfolio, normalizedPortfolio = generator.sectorize(portfolio, balances)
+
         for sector, holdings in sectorHoldings.items():
-            returnsSector = get_index(sector)
-            returnsSector = returnsSector[portfolioBySector.index[0]:].pct_change()
-            returnsSector.name = sector
-            returnsIndices[sector] = returnsSector
-        returnsIndices.iloc[0] = 0
-        normalizedIndices = (returnsIndices +1).cumprod()
+            returnsIndices = get_index(sector)
+            returnsIndices = returnsIndices[normalizedPortfolio.index[0]:].pct_change()
+            returnsIndices.name = sector
+        normalizedIndices = (returnsIndices + 1).cumprod()
 
-        # Daily Returns and Performance for Portfolio by Sector #
-        returnsPortfolio = (portfolioBySector - portfolioBySector.shift(1) - (
-                    balancesBySector - balancesBySector.shift(1))) \
-                           / portfolioBySector.shift(1)
-        returnsPortfolio.name = 'Portfolio'
-        returnsPortfolio.iloc[0] = 0
-        normalizedPortfolio = (returnsPortfolio + 1).cumprod()
 
-        # Normalized Active Returns and Performance by Sector #
-        normalizedActive = pd.DataFrame()
-        for sector, holdings in sectorHoldings.items():
-            normalizedActive[sector] = normalizedPortfolio[sector] - normalizedIndices[sector]
-        normalizedActive *= 100
-        normalizedActive.to_excel('./outputs/activePerformance.xlsx')
 
-    return normalizedActive
+    return None
 
 ### Performance ###
 def performancePosition(ticker, select_date='present'):
@@ -621,7 +383,7 @@ def correlation_matrix(group_by="portfolio", excel=False):
 
 
 ### Ratios ###
-def ratios(method='total'):
+def ratios(portfolio, method='total'):
     if method == 'total':
         notfound = 0
         ratios = {'pe': 0, 'pb': 0, 'dyield': 0}
@@ -731,13 +493,11 @@ def holdings_sector(date='present'):
 ### Running if  ###
 if __name__ == '__main__':
 
-    ### Import Data from Excel ###
-    if len(sys.argv) > 1:
-        import_excel(sys.argv[1], flexCash=True)
-    else:
-        import_excel('./inputs/transactions_5Y.xlsx', flexCash=True)
+    ### Import Data from Excel or Pickle ###
+    portfolio, balances, holdings, sectorHoldings = load_data('pickle')
 
-    print(analytics('advanced'))
-    # print(ratios())
-    # print(sector_analytics('advanced', True))
-    print(performance('sector'))
+    print(analytics(portfolio, balances, 'advanced'))
+    # print(ratios(portfolio))
+    # print(sector_analytics(portfolio, balances, 'advanced', True))
+    print(performance(portfolio, balances, 'sector'))
+
