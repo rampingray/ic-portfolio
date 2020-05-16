@@ -20,9 +20,19 @@ balances = pd.DataFrame()  # Series holding the balance that created each holdin
 holdings = {}  # Dictionary holding instances of Holding indexed by strings of ticker
 
 ### Sector Holdings ###
-sectorHoldings = {'Staples': [], 'Discretionary': [], 'Energy': [],
-                  'REITs': [], 'Financials': [], 'Healthcare': [], 'Industrials': [],
-                  'Utilities': [], 'Macro': [], 'Technology': [], 'Fixed Income': []}
+sectorHoldings = {
+    'Staples': [],
+    'Discretionary': [],
+    'Energy': [],
+    'REITs': [],
+    'Financials': [],
+    'Healthcare': [],
+    'Industrials': [],
+    'Utilities': [],
+    'Macro': [],
+    'Technology': [],
+    'Fixed Income': []
+}
 
 #########################
 ### Class Definitions ###
@@ -270,14 +280,14 @@ def sectorize(portfolio, balances):
         portfolioBySector[sector] = portfolio[holdings].sum(axis=1)
         balancesBySector[sector] = balances[holdings].sum(axis=1)
 
-    returnsPortfolio = (portfolioBySector - portfolioBySector.shift(1) - (balancesBySector - balancesBySector.shift(1))) \
+    returnsBySector = (portfolioBySector - portfolioBySector.shift(1) - (balancesBySector - balancesBySector.shift(1))) \
                        / portfolioBySector.shift(1)
-    returnsPortfolio.name = 'Portfolio'
-    returnsPortfolio.iloc[0] = 0
-    returnsPortfolio = returnsPortfolio.fillna(0)
-    normalizedPortfolio = (returnsPortfolio + 1).cumprod()
+    returnsBySector.name = 'Portfolio'
+    returnsBySector.iloc[0] = 0
+    returnsBySector = returnsBySector.fillna(0)
+    normalizedBySector = (returnsBySector + 1).cumprod()
 
-    return returnsPortfolio, normalizedPortfolio
+    return portfolioBySector, returnsBySector, normalizedBySector
 
 
 ### Testing ###
