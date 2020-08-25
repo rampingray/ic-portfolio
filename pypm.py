@@ -581,7 +581,7 @@ if __name__ == '__main__':
     # portfolio, balances, holdings, sectorHoldings = load_data('excel')
     portfolio, balances, holdings, sectorHoldings = load_data('pickle')
 
-    # print(analytics(portfolio, balances, 'advanced'))
+    print(analytics(portfolio, balances, 'advanced'))
     # print(ratios(portfolio))
     # print(sector_analytics(portfolio, balances, 'advanced', True))
     print(performance(portfolio, balances, 'sector', weightPortfolio={

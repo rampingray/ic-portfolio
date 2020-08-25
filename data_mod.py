@@ -4,7 +4,11 @@ import pandas as pd
 
 ### Setup ###
 fmpurl = 'https://financialmodelingprep.com/api/v3/'
+fmpkey = 'b1a82565d318254b3c0006ec0ca43454'
 quandl.ApiConfig.api_key = "WrfYxYjepwxbuzY9TxjP"
+tiingourl = 'https://api.tiingo.com/tiingo/daily/'
+tiingoheaders = {'Content-Type': 'application/json'}
+tiingokey = '3febee85fff805b26816ebcc81ed7fc75b9b894f'
 
 def get_treas(arg):
     #Possible args '1 MO','2 MO','3 MO','6 MO','1 YR','2 YR','3 YR','5 YR','7 YR','10 YR','20 YR','30 YR'
@@ -100,20 +104,26 @@ def get_index(index):
     }
 
     try:
-        dailyprices = pd.DataFrame(requests.get(fmpurl+'historical-price-full/'+argmap[index.lower()]+'?serietype=line').json()['historical']).set_index('date')      # Gets the daily closing price of a stock starting on the buy date
+        # dailyprices = pd.DataFrame(requests.get(fmpurl+'historical-price-full/'+argmap[index.lower()]+'?serietype=line').json()['historical']).set_index('date')      # Gets the daily closing price of a stock starting on the buy date
+        dailyprices = pd.DataFrame(requests.get(tiingourl+argmap[index.lower()]+'/prices?token='+tiingokey+'&startDate=2015-1-1', headers=tiingoheaders).json()).set_index('date')
+
     except KeyError:
         print('Invalid Index for get_data')
         return None
     dailyprices.index = pd.to_datetime(dailyprices.index)
+    dailyprices.index = dailyprices.index.tz_convert(None)
     return dailyprices.close
 
 def get_stock(ticker):
     try:
-        dailyprices = pd.DataFrame(requests.get(fmpurl+'historical-price-full/'+ticker+'?serietype=line').json()['historical']).set_index('date')
+            # dailyprices = pd.DataFrame(requests.get(fmpurl+'historical-price-full/'+ticker+'?apikey='+fmpkey).json()['historical']).set_index('date')
+            dailyprices = pd.DataFrame(requests.get(tiingourl+ticker+'/prices?token='+tiingokey+'&startDate=2015-1-1', headers=tiingoheaders).json()).set_index('date')
     except KeyError:
         print('Invalid Ticker for get_stock (%s)' % (ticker))
         return None
     dailyprices.index = pd.to_datetime(dailyprices.index)
+    dailyprices.index = dailyprices.index.tz_convert(None)
+    dailyprices = dailyprices.sort_index()
     return dailyprices.close
 
 def get_stocks(tickerList):
@@ -121,7 +131,7 @@ def get_stocks(tickerList):
     errors = []
     for ticker in tickerList:
         try:
-            dailyprices = pd.DataFrame(requests.get(fmpurl+'historical-price-full/'+ticker+'?serietype=line').json()['historical']).set_index('date')
+            dailyprices = pd.DataFrame(requests.get(fmpurl+'historical-price-full/'+ticker+'?apikey='+fmpkey).json()['historical']).set_index('date')
             dailyprices.index = pd.to_datetime(dailyprices.index)
             dailyprices = dailyprices.close
             dataOut = pd.concat([dataOut, dailyprices], axis=1) 
