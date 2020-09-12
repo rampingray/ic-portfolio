@@ -82,6 +82,7 @@ def get_index(index):
     'tech':'xlk',
     'technology':'xlk',
     'tmt':'xlk',
+    'media': 'xlc',
     'staples':'xlp',
     'consumerstaples':'xlp',
     'discretionary':'xly',

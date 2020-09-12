@@ -197,8 +197,7 @@ def sector_analytics(portfolio, balances, level='basic', excel=False):
 
     output = pd.DataFrame(analytics, index=list(position.keys())).round(3)
     output2 = normalizedPortfolio
-    output3 = pd.DataFrame(
-        requests.get(fmpurl + 'historical-price-full/SPY?serietype=line').json()['historical']).set_index('date')
+    # output3 = pd.DataFrame(requests.get(fmpurl + 'historical-price-full/SPY?serietype=line').json()['historical']).set_index('date')
 
     if excel:
         output.to_excel('./outputs/sectorbreakdown.xlsx')
@@ -226,6 +225,7 @@ def performance(portfolio, balances, method = 'overall', benchmark = 'spy', weig
         'Utilities': 0.0252,
         'Macro': 0.035,
         'Technology': 0.2792,
+        'Media': 0,
         'Fixed Income': 0.15
     }
 
@@ -583,20 +583,21 @@ if __name__ == '__main__':
 
     print(analytics(portfolio, balances, 'advanced'))
     # print(ratios(portfolio))
-    # print(sector_analytics(portfolio, balances, 'advanced', True))
-    print(performance(portfolio, balances, 'sector', weightPortfolio={
-                                                                        'Staples': 0.065,
+    print(sector_analytics(portfolio, balances, 'advanced', True))
+    '''print(performance(portfolio, balances, 'sector', weightPortfolio={
+                                                                        'Staples': 0.08,
                                                                         'Discretionary': 0.10,
-                                                                        'Energy': 0.06,
-                                                                        'REITs': 0.045,
-                                                                        'Financials': 0.095,
-                                                                        'Healthcare': 0.095,
-                                                                        'Industrials': 0.075,
-                                                                        'Utilities': 0.055,
-                                                                        'Macro': 0.035,
-                                                                        'Technology': 0.175,
+                                                                        'Energy': 0.04,
+                                                                        'REITs': 0.035,
+                                                                        'Financials': 0.09,
+                                                                        'Healthcare': 0.105,
+                                                                        'Industrials': 0.07,
+                                                                        'Utilities': 0.045,
+                                                                        'Macro': 0,
+                                                                        'Technology': 0.145,
+                                                                        'Media': 0.09,
                                                                         'Fixed Income': 0.15
                                                                         }
                       )
           )
-
+    '''

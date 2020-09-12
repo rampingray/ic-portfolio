@@ -31,6 +31,7 @@ sectorHoldings = {
     'Utilities': [],
     'Macro': [],
     'Technology': [],
+    'Media': [],
     'Fixed Income': []
 }
 
