@@ -593,7 +593,7 @@ if __name__ == '__main__':
                                                                         'Healthcare': 0.105,
                                                                         'Industrials': 0.07,
                                                                         'Utilities': 0.045,
-                                                                        'Macro': 0,
+                                                                        'Macro': 0.0,
                                                                         'Technology': 0.145,
                                                                         'Media': 0.09,
                                                                         'Fixed Income': 0.15
