@@ -113,7 +113,7 @@ def get_index(index):
         return None
     dailyprices.index = pd.to_datetime(dailyprices.index)
     dailyprices.index = dailyprices.index.tz_convert(None)
-    return dailyprices.close
+    return dailyprices.adjClose
 
 def get_stock(ticker):
     try:
@@ -125,7 +125,7 @@ def get_stock(ticker):
     dailyprices.index = pd.to_datetime(dailyprices.index)
     dailyprices.index = dailyprices.index.tz_convert(None)
     dailyprices = dailyprices.sort_index()
-    return dailyprices.close
+    return dailyprices.adjClose
 
 def get_stocks(tickerList):
     dataOut = pd.DataFrame()

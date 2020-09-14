@@ -196,7 +196,7 @@ def sector_analytics(portfolio, balances, level='basic', excel=False):
         analytics[sector] = position
 
     output = pd.DataFrame(analytics, index=list(position.keys())).round(3)
-    output2 = normalizedPortfolio
+    # output2 = normalizedPortfolio
     # output3 = pd.DataFrame(requests.get(fmpurl + 'historical-price-full/SPY?serietype=line').json()['historical']).set_index('date')
 
     if excel:
@@ -578,13 +578,13 @@ def holdings_sector(date='present'):
 if __name__ == '__main__':
 
     ### Import Data from Excel or Pickle ###
-    # portfolio, balances, holdings, sectorHoldings = load_data('excel')
-    portfolio, balances, holdings, sectorHoldings = load_data('pickle')
+    portfolio, balances, holdings, sectorHoldings = load_data('excel')
+    # portfolio, balances, holdings, sectorHoldings = load_data('pickle')
 
     print(analytics(portfolio, balances, 'advanced'))
     # print(ratios(portfolio))
     print(sector_analytics(portfolio, balances, 'advanced', True))
-    '''print(performance(portfolio, balances, 'sector', weightPortfolio={
+    print(performance(portfolio, balances, 'sector', weightPortfolio={
                                                                         'Staples': 0.08,
                                                                         'Discretionary': 0.10,
                                                                         'Energy': 0.04,
@@ -600,4 +600,4 @@ if __name__ == '__main__':
                                                                         }
                       )
           )
-    '''
+
