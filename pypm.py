@@ -469,22 +469,23 @@ def correlation_matrix(group_by="portfolio", excel=False):
 def ratios(portfolio, method='total'):
     if method == 'total':
         notfound = 0
-        ratios = {'pe': 0, 'pb': 0, 'dyield': 0}
+        ratios = {'pe': 0, 'pb': 0, 'dYield': 0}
         cap = 0
         tickers = set(portfolio.columns.tolist())
         for ticker in tickers:
             try:
                 weight = portfolio[ticker][-2]
-                pe = get_ratio(ticker, 'pe')
-                pb = get_ratio(ticker, 'pb')
-                div = get_ratio(ticker, 'dyield')
+                pe, pb, div = get_ratios(ticker)
                 if pe >= 0:
                     ratios['pe'] += pe * weight
                 if pb >= 0:
                     ratios['pb'] += pb * weight
-                ratios['dyield'] += div * weight
+                if div >= 0:
+                    ratios['dYield'] += div * weight
                 cap += weight
+
             except:
+                print('Call to ratios() failed:', ticker)
                 notfound += 1
         ratios = pd.Series(ratios)
         ratios /= cap
@@ -580,10 +581,10 @@ if __name__ == '__main__':
     # portfolio, balances, holdings, sectorHoldings = load_data('excel')
     portfolio, balances, holdings, sectorHoldings = load_data('pickle')
 
-    print(analytics(portfolio, balances, 'advanced'))
-    # print(ratios(portfolio))
-    print(sector_analytics(portfolio, balances, 'advanced', True))
-    print(performance(portfolio, balances, 'sector', weightPortfolio={
+    # print(analytics(portfolio, balances, 'advanced'))
+    print(ratios(portfolio))
+    # print(sector_analytics(portfolio, balances, 'advanced', True))
+    '''print(performance(portfolio, balances, 'sector', weightPortfolio={
                                                                         'Staples': 0.08,
                                                                         'Discretionary': 0.10,
                                                                         'Energy': 0.04,
@@ -599,4 +600,4 @@ if __name__ == '__main__':
                                                                         }
                       )
           )
-
+    '''

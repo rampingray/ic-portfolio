@@ -1,12 +1,13 @@
 import requests
 import quandl
 import pandas as pd
+import yfinance as yf
 
 ### Setup ###
 fmpurl = 'https://financialmodelingprep.com/api/v3/'
 fmpkey = 'b1a82565d318254b3c0006ec0ca43454'
 quandl.ApiConfig.api_key = "WrfYxYjepwxbuzY9TxjP"
-tiingourl = 'https://api.tiingo.com/tiingo/daily/'
+tiingourl = 'https://api.tiingo.com/tiingo/'
 tiingoheaders = {'Content-Type': 'application/json'}
 tiingokey = '3febee85fff805b26816ebcc81ed7fc75b9b894f'
 
@@ -106,7 +107,7 @@ def get_index(index):
 
     try:
         # dailyprices = pd.DataFrame(requests.get(fmpurl+'historical-price-full/'+argmap[index.lower()]+'?serietype=line').json()['historical']).set_index('date')      # Gets the daily closing price of a stock starting on the buy date
-        dailyprices = pd.DataFrame(requests.get(tiingourl+argmap[index.lower()]+'/prices?token='+tiingokey+'&startDate=2015-1-1', headers=tiingoheaders).json()).set_index('date')
+        dailyprices = pd.DataFrame(requests.get(tiingourl+'daily/'+argmap[index.lower()]+'/prices?token='+tiingokey+'&startDate=2015-1-1', headers=tiingoheaders).json()).set_index('date')
 
     except KeyError:
         print('Invalid Index for get_data')
@@ -118,7 +119,7 @@ def get_index(index):
 def get_stock(ticker):
     try:
             # dailyprices = pd.DataFrame(requests.get(fmpurl+'historical-price-full/'+ticker+'?apikey='+fmpkey).json()['historical']).set_index('date')
-            dailyprices = pd.DataFrame(requests.get(tiingourl+ticker+'/prices?token='+tiingokey+'&startDate=2015-1-1', headers=tiingoheaders).json()).set_index('date')
+            dailyprices = pd.DataFrame(requests.get(tiingourl+'daily/'+ticker+'/prices?token='+tiingokey+'&startDate=2015-1-1', headers=tiingoheaders).json()).set_index('date')
     except KeyError:
         print('Invalid Ticker for get_stock (%s)' % (ticker))
         return None
@@ -162,3 +163,23 @@ def get_ratio(ticker, ratio):
         return None
 
     return ratio
+
+def get_ratios(ticker):
+
+    try:
+        stock = yf.Ticker(ticker)
+        peRatio = stock.info['forwardPE']
+        pbRatio = stock.info['priceToBook']
+        div = stock.info['dividendYield']
+        if not peRatio:
+            peRatio = 0
+        if not pbRatio:
+            pbRatio = 0
+        if not div:
+            div = 0
+    except:
+        print('Call to get_ratios() failed:', ticker)
+        return None
+
+
+    return peRatio, pbRatio, div
