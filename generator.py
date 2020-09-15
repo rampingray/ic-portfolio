@@ -260,7 +260,7 @@ def sell(ticker, date, shares, price=None, sector=None):
     portfolio['Cash'].loc[date:] += shares * price
 
     balances['Cash'].loc[date:] += shares * price
-    balances[ticker].loc[date:] -= shares * holdings[ticker].price
+    balances[ticker].loc[date:] -= shares * price
 
     holdings[ticker].sell(shares)
 

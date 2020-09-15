@@ -65,8 +65,7 @@ def analytics(portfolio, balances, level='basic'):
 
     sumPortfolio = portfolio.fillna(method='pad').sum(axis=1)
     sumBalances = balances.fillna(0).sum(axis=1)
-    returnsPortfolio = (sumPortfolio - sumPortfolio.shift(1)
-        - (sumBalances - sumBalances.shift(1))) / (sumPortfolio.shift(1))
+    returnsPortfolio = (sumPortfolio - sumPortfolio.shift(1) - (sumBalances - sumBalances.shift(1)) ) / (sumPortfolio.shift(1))
     returnsPortfolio.name = 'Portfolio'
     returnsPortfolio.iloc[0] = 0
     normalizedPortfolio = (returnsPortfolio + 1).cumprod()
@@ -215,16 +214,16 @@ def performance(portfolio, balances, method = 'overall', benchmark = 'spy', weig
     #           - Sector: Performance and contribution by sector
     #           - Both: Performance and contribution by individual picks and asset allocation
     weightMarket = {
-        'Staples': 0.0566,
-        'Discretionary': 0.0803,
-        'Energy': 0.023,
-        'REITs': 0.0222,
-        'Financials': 0.0811,
-        'Healthcare': 0.1178,
-        'Industrials': 0.0796,
-        'Utilities': 0.0252,
-        'Macro': 0.035,
-        'Technology': 0.2792,
+        'Staples': 0.0552,
+        'Discretionary': 0.0912,
+        'Energy': 0.0184,
+        'REITs': 0.0208,
+        'Financials': 0.0768,
+        'Healthcare': 0.1120,
+        'Industrials': 0.0840,
+        'Utilities': 0.0224,
+        'Macro': 0.0,
+        'Technology': 0.2296,
         'Media': 0,
         'Fixed Income': 0.15
     }
@@ -578,8 +577,8 @@ def holdings_sector(date='present'):
 if __name__ == '__main__':
 
     ### Import Data from Excel or Pickle ###
-    portfolio, balances, holdings, sectorHoldings = load_data('excel')
-    # portfolio, balances, holdings, sectorHoldings = load_data('pickle')
+    # portfolio, balances, holdings, sectorHoldings = load_data('excel')
+    portfolio, balances, holdings, sectorHoldings = load_data('pickle')
 
     print(analytics(portfolio, balances, 'advanced'))
     # print(ratios(portfolio))
