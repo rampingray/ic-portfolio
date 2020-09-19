@@ -214,16 +214,16 @@ def performance(portfolio, balances, method = 'overall', benchmark = 'spy', weig
     #           - Sector: Performance and contribution by sector
     #           - Both: Performance and contribution by individual picks and asset allocation
     weightMarket = {
-        'Staples': 0.0552,
-        'Discretionary': 0.0912,
-        'Energy': 0.0184,
-        'REITs': 0.0208,
-        'Financials': 0.0768,
-        'Healthcare': 0.1120,
-        'Industrials': 0.0840,
-        'Utilities': 0.0224,
+        'Staples': 0.058,
+        'Discretionary': 0.11,
+        'Energy': 0.032,
+        'REITs': 0.046,
+        'Financials': 0.109,
+        'Healthcare': 0.102,
+        'Industrials': 0.159,
+        'Utilities': 0.042,
         'Macro': 0.0,
-        'Technology': 0.2296,
+        'Technology': 0.105,
         'Media': 0,
         'Fixed Income': 0.15
     }
@@ -582,22 +582,21 @@ if __name__ == '__main__':
     portfolio, balances, holdings, sectorHoldings = load_data('pickle')
 
     # print(analytics(portfolio, balances, 'advanced'))
-    print(ratios(portfolio))
+    # print(ratios(portfolio))
     # print(sector_analytics(portfolio, balances, 'advanced', True))
-    '''print(performance(portfolio, balances, 'sector', weightPortfolio={
-                                                                        'Staples': 0.08,
+    print(performance(portfolio, balances, 'sector', weightPortfolio={
+                                                                        'Staples': 0.072,
                                                                         'Discretionary': 0.10,
-                                                                        'Energy': 0.04,
-                                                                        'REITs': 0.035,
-                                                                        'Financials': 0.09,
-                                                                        'Healthcare': 0.105,
-                                                                        'Industrials': 0.07,
-                                                                        'Utilities': 0.045,
+                                                                        'Energy': 0.047,
+                                                                        'REITs': 0.043,
+                                                                        'Financials': 0.093,
+                                                                        'Healthcare': 0.099,
+                                                                        'Industrials': 0.071,
+                                                                        'Utilities': 0.046,
                                                                         'Macro': 0.0,
-                                                                        'Technology': 0.145,
-                                                                        'Media': 0.09,
+                                                                        'Technology': 0.147,
+                                                                        'Media': 0.087,
                                                                         'Fixed Income': 0.15
                                                                         }
                       )
           )
-    '''
