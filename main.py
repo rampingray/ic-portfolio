@@ -1,12 +1,12 @@
 from pypm import *
-import gui
+# import gui
 
 ### Import Data from Excel or Pickle ###
-# portfolio, balances, holdings, sectorHoldings = load_data('excel')
+portfolio, balances, holdings, sectorHoldings = load_data('excel')
 # portfolio, balances, holdings, sectorHoldings = load_data('pickle')
 
-# print(analytics(portfolio, balances, 'advanced'))
-# print(ratios(portfolio))
+print(analytics(portfolio, balances, 'advanced'))
+print(ratios(portfolio))
 # print(sector_analytics(portfolio, balances, 'advanced', True))
 '''print(performance(portfolio, balances, 'sector', weightPortfolio={
                                                                     'Staples': 0.072,
@@ -26,4 +26,4 @@ import gui
       )
       '''
 
-gui.run()
+# gui.run()
