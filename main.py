@@ -1,5 +1,4 @@
 from pypm import *
-# import gui
 
 ### Import Data from Excel or Pickle ###
 portfolio, balances, holdings, sectorHoldings = load_data('excel')
@@ -25,5 +24,3 @@ print(ratios(portfolio))
                   )
       )
       '''
-
-# gui.run()
