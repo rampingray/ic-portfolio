@@ -204,7 +204,7 @@ def sector_analytics(portfolio, balances, level='basic', excel=False):
         # output3.to_excel('./outputs/market.xlsx')
     return output
 
-def performance(portfolio, balances, method = 'overall', benchmark = 'spy', weightPortfolio = None):
+def performance(portfolio, balances, sectorHoldings, method = 'overall', benchmark = 'spy', weightPortfolio = None):
     #   - Returns over multiple time periods [1M, 3M, YTD, 1Y, Max] (all methods)
     #   - Contribution of stock picks (individual, both)
     #   - Contribution of sector weighting (sector, both)
@@ -214,17 +214,17 @@ def performance(portfolio, balances, method = 'overall', benchmark = 'spy', weig
     #           - Sector: Performance and contribution by sector
     #           - Both: Performance and contribution by individual picks and asset allocation
     weightMarket = {
-        'Staples': 0.058,
-        'Discretionary': 0.11,
-        'Energy': 0.032,
-        'REITs': 0.046,
-        'Financials': 0.109,
-        'Healthcare': 0.102,
-        'Industrials': 0.159,
+        'Staples': 0.047,
+        'Discretionary': 0.097,
+        'Energy': 0.042,
+        'REITs': 0.048,
+        'Financials': 0.107,
+        'Healthcare': 0.096,
+        'Industrials': 0.163,
         'Utilities': 0.042,
         'Macro': 0.0,
-        'Technology': 0.105,
-        'Media': 0,
+        'Technology': 0.122,
+        'Media': 0.034,
         'Fixed Income': 0.15
     }
 
@@ -469,27 +469,29 @@ def correlation_matrix(group_by="portfolio", excel=False):
 def ratios(portfolio, method='total'):
     if method == 'total':
         notfound = 0
-        ratios = {'pe': 0, 'pb': 0, 'dYield': 0}
+        ratiosPortfolio = {'pe': 0, 'pb': 0, 'dYield': 0}
         cap = 0
         tickers = set(portfolio.columns.tolist())
         for ticker in tickers:
+            print(ticker)
             try:
+                pe = get_ratio(ticker, 'forwardPE')
+                pb = get_ratio(ticker, 'priceToBook')
+                dYield = get_ratio(ticker, 'dividendYield')
                 weight = portfolio[ticker][-2]
-                pe, pb, div = get_ratios(ticker)
-                if pe >= 0:
-                    ratios['pe'] += pe * weight
-                if pb >= 0:
-                    ratios['pb'] += pb * weight
-                if div >= 0:
-                    ratios['dYield'] += div * weight
+                if pe > 0:
+                    ratiosPortfolio['pe'] += pe * weight
+                if pb > 0:
+                    ratiosPortfolio['pb'] += pb * weight
+                if dYield > 0:
+                    ratiosPortfolio['dYield'] += dYield * weight
                 cap += weight
-
             except:
                 print('Call to ratios() failed:', ticker)
                 notfound += 1
-        ratios = pd.Series(ratios)
-        ratios /= cap
-    return ratios
+        ratiosPortfolio = pd.Series(ratiosPortfolio)
+        ratiosPortfolio /= cap
+    return ratiosPortfolio
 
 
 ### Historical Analytics ###

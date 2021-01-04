@@ -139,47 +139,29 @@ def get_stocks(tickerList):
             dataOut = pd.concat([dataOut, dailyprices], axis=1) 
         except KeyError:
             errors.append(ticker)
-
     print('Error tickers:', errors)
     return dataOut
 
 
 def get_ratio(ticker, ratio):
     try:
-        if ratio == 'pe':
-            price = float(requests.get(fmpurl+'company/profile/'+ticker).json()['profile']['price'])
-            eps = float(requests.get(fmpurl+'financials/income-statement/'+ticker).json()['financials'][0]['EPS'])
-            ratio = price / eps
-        elif ratio == 'pb':
-            market_cap = float(requests.get(fmpurl+'company/profile/'+ticker).json()['profile']['mktCap'])
-            book = float(requests.get(fmpurl+'financials/balance-sheet-statement/'+ticker).json()['financials'][0]['Total shareholders equity'])
-            ratio = market_cap / book
-        elif ratio == 'dyield':
-            price = float(requests.get(fmpurl+'company/profile/'+ticker).json()['profile']['price'])
-            div = float(requests.get(fmpurl+'company/profile/'+ticker).json()['profile']['lastDiv'])
-            ratio = div / price * 100
-    except:
-        print('Call to get_ratio() failed:', ticker)
-        return None
-
-    return ratio
-
-def get_ratios(ticker):
-
-    try:
         stock = yf.Ticker(ticker)
-        peRatio = stock.info['forwardPE']
-        pbRatio = stock.info['priceToBook']
-        div = stock.info['dividendYield']
-        if not peRatio:
-            peRatio = 0
-        if not pbRatio:
-            pbRatio = 0
-        if not div:
-            div = 0
+        output = stock.info[ratio]
+        if output == None:
+            return 0
+        return output
+
     except:
-        print('Call to get_ratios() failed:', ticker)
+        print('Call to get_ratios() failed:', ratio, 'for', ticker)
         return None
 
+def get_ratios(ticker, ratios):
+    try:
+        output = {}
+        for ratio in ratios:
+            output[ratio] = get_ratio(ticker, ratio)
+        return output
 
-    return peRatio, pbRatio, div
+    except:
+        print('Call to get_ratios() failed:', ticker, ratios)
+        return None
