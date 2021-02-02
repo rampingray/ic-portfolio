@@ -468,6 +468,26 @@ def correlation_matrix(group_by="portfolio", excel=False):
 
 ### Ratios ###
 def ratios(portfolio, method='total'):
+
+    if method == 'total':
+        ratiosToGet = ['forwardPE', 'priceToBook', 'dividendYield']
+
+    tickers = set(portfolio.columns.tolist())
+    portfolioRatios = pd.DataFrame(columns=tickers, index=ratiosToGet)
+
+    def ratiosIterable(ticker):
+        portfolioRatios[ticker] = pd.Series(get_ratios(ticker, ratiosToGet))
+
+    with ThreadPool(10) as pool:
+        pool.map(ratiosIterable, tickers)
+
+    print(portfolioRatios)
+    portfolioRatios = portfolioRatios.fillna(0)
+    portfolioRatios = portfolioRatios * portfolio.iloc[-2]
+    output = portfolioRatios.sum(axis=1) / sum(portfolio.iloc[-2])
+
+
+    '''
     if method == 'total':
         notfound = 0
         ratiosPortfolio = {'pe': 0, 'pb': 0, 'dYield': 0}
@@ -491,7 +511,9 @@ def ratios(portfolio, method='total'):
                 notfound += 1
         ratiosPortfolio = pd.Series(ratiosPortfolio)
         ratiosPortfolio /= cap
-    return ratiosPortfolio
+    '''
+
+    return output
 
 
 ### Historical Analytics ###
