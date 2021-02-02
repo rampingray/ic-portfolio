@@ -8,6 +8,7 @@ import datetime
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.stats import linregress
+from multiprocessing.dummy import Pool as ThreadPool
 import numpy as np
 import requests
 import sys
@@ -473,7 +474,6 @@ def ratios(portfolio, method='total'):
         cap = 0
         tickers = set(portfolio.columns.tolist())
         for ticker in tickers:
-            print(ticker)
             try:
                 pe = get_ratio(ticker, 'forwardPE')
                 pb = get_ratio(ticker, 'priceToBook')

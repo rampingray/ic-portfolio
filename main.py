@@ -23,5 +23,4 @@ print(performance(portfolio, balances, sectorHoldings, 'sector', weightPortfolio
                                                                     'Macro': 0.0
                                                                     }
                   )
-      )
-'''
+      )'''
