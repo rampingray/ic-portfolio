@@ -22,7 +22,7 @@ riskFree = get_treas('10 yr')[-1] / 100  # Annual risk free rate (percentage)
 riskFreeDaily = ((riskFree + 1) ** (1 / 252) - 1)  # Converts annual risk free to daily (percentage)
 
 ### Market Rate ###
-marketRate = 0.08  # Open to being changed
+marketRate = 0.08  # Open to being changed (should be assumption of excess return of market)
 
 ############################
 ### Function Definitions ###
@@ -31,7 +31,7 @@ marketRate = 0.08  # Open to being changed
 ### Load Data ###
 def load_data(type = 'excel'):
     if type == 'excel':
-        return generator.import_excel('./inputs/transactions_5Y.xlsx', flexCash=True, savePickle=True)
+        return generator.import_excel('./inputs/transactions_5Y-Prices.xlsx', flexCash=True, savePickle=True)
 
     elif type == 'pickle':
         return generator.import_pickle('./pickles/portfolio.pkl',
@@ -80,27 +80,28 @@ def analytics(portfolio, balances, level='basic'):
 
     returnsWeekly = returnsPortfolioMarket.resample('W-MON').agg(lambda x: (1 + x / 100).prod() - 1) * 100
 
+
     # Returns
     analytics['Pct. Return 1M'] = (normalizedPortfolio.iloc[-1]
         / normalizedPortfolio.iloc[normalizedPortfolio.index.get_loc(datetime.date.today()
-        - datetime.timedelta(days=30), method='pad')] - 1) * 100
+        - datetime.timedelta(days=30), method='pad')] - 1)
     analytics['Pct. Return 3M'] = (normalizedPortfolio.iloc[-1]
         / normalizedPortfolio.iloc[normalizedPortfolio.index.get_loc(datetime.date.today()
-        - datetime.timedelta(days=90), method='pad')] - 1) * 100
+        - datetime.timedelta(days=90), method='pad')] - 1)
     analytics['Pct. Return YTD'] = (normalizedPortfolio.iloc[-1]
         / normalizedPortfolio.iloc[normalizedPortfolio.index.get_loc(datetime.date(datetime.date.today().year, 1, 1),
-        method='pad')] - 1) * 100
+        method='pad')] - 1)
     analytics['Pct. Return 1Y'] = (normalizedPortfolio.iloc[-1]
         / normalizedPortfolio.iloc[normalizedPortfolio.index.get_loc(datetime.date.today()
-        - datetime.timedelta(days=365),method='pad')] - 1) * 100
+        - datetime.timedelta(days=365),method='pad')] - 1)
     analytics['Pct. Return 3Y'] = (normalizedPortfolio.iloc[-1]
         / normalizedPortfolio.iloc[normalizedPortfolio.index.get_loc(datetime.date.today()
-        - datetime.timedelta(days=365 * 3),method='pad')] - 1) * 100
-    analytics['Pct. Return Max'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[0] - 1) * 100
+        - datetime.timedelta(days=365 * 3),method='pad')] - 1)
+    analytics['Pct. Return Max'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[0] - 1)
 
     analytics['Pct. Return CAGR'] = ((normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[0])
         ** ((1 / ((normalizedPortfolio.index[-1] - normalizedPortfolio.index[0]).total_seconds()
-        / (86400 * 365)))) - 1) * 100
+        / (86400 * 365)))) - 1)
 
     analytics['Portfolio Value'] = float(sumPortfolio.iloc[-1])
 
@@ -109,10 +110,10 @@ def analytics(portfolio, balances, level='basic'):
     #   Alpha = Annualized Alpha (Based on Portfolio CAGR)
     analytics['3Y Adj Beta'] = returnsWeekly['Portfolio'].cov(returnsWeekly.SP500) / returnsWeekly.SP500.var() * (
             2 / 3) + (1 / 3)
-    expected_return = (analytics['3Y Adj Beta'] * (marketRate - riskFree) + riskFree) * 100
-    analytics['Alpha'] = (analytics['Pct. Return CAGR'] / 100 - expected_return / 100) * 100
-    analytics['Sharpe'] = float((analytics['Pct. Return CAGR'] / 100 - riskFree) / ((returnsPortfolio).std() * 252 ** 0.5))
-    analytics['Treynor'] = float((analytics['Pct. Return CAGR'] / 100 - riskFree) / analytics['3Y Adj Beta'])
+    expected_return = (analytics['3Y Adj Beta'] * (marketRate - riskFree) + riskFree)
+    analytics['Alpha'] = (analytics['Pct. Return CAGR'] - expected_return)
+    analytics['Sharpe'] = float((analytics['Pct. Return CAGR'] - riskFree) / ((returnsPortfolio).std() * 252 ** 0.5))
+    analytics['Treynor'] = float((analytics['Pct. Return CAGR'] - riskFree) / analytics['3Y Adj Beta'])
 
     # Advanced Statistics
     #   Std. Deviation = Annualized StdDev = Daily StdDev * sqrt(# of Trading Days)
@@ -121,8 +122,8 @@ def analytics(portfolio, balances, level='basic'):
         drawdown['Prices'] = normalizedPortfolio
         drawdown['CumMax'] = drawdown.Prices.cummax()
         drawdown['Drawdown'] = (drawdown['Prices'] - drawdown['CumMax']) / drawdown['CumMax']
-        analytics['Max Drawdown'] = float(drawdown['Drawdown'].min()) * 100
-        analytics['Std. Deviation'] = float(returnsPortfolioMarket.Portfolio.std() * 252 ** 0.5)
+        analytics['Max Drawdown'] = float(drawdown['Drawdown'].min())
+        analytics['Std. Deviation'] = float(returnsPortfolioMarket.Portfolio.std() * 252 ** 0.5) / 100
         analytics['R Squared'] = (returnsPortfolioMarket.Portfolio.cov(returnsPortfolioMarket.SP500)
             / (returnsPortfolioMarket.Portfolio.std() * returnsPortfolioMarket.SP500.std())) ** 2
         analytics['Expected Return'] = expected_return
@@ -153,32 +154,32 @@ def sector_analytics(portfolio, balances, level='basic', excel=False):
         position = {}
         position['Pct. Return 1M'] = (normalizedPortfolio[sector].iloc[-1]
             / normalizedPortfolio[sector].iloc[normalizedPortfolio[sector].index.get_loc(datetime.date.today()
-            - datetime.timedelta(days=30), method='pad')] - 1) * 100
+            - datetime.timedelta(days=30), method='pad')] - 1)
         position['Pct. Return 3M'] = (normalizedPortfolio[sector].iloc[-1]
             / normalizedPortfolio[sector].iloc[normalizedPortfolio[sector].index.get_loc(datetime.date.today()
-            - datetime.timedelta(days=90), method='pad')] - 1) * 100
+            - datetime.timedelta(days=90), method='pad')] - 1)
         position['Pct. Return YTD'] = (normalizedPortfolio[sector].iloc[-1]
             / normalizedPortfolio[sector].iloc[normalizedPortfolio[sector].index.get_loc(datetime.date(
-            datetime.date.today().year, 1, 1), method='pad')] - 1) * 100
+            datetime.date.today().year, 1, 1), method='pad')] - 1)
         position['Pct. Return 1Y'] = (normalizedPortfolio[sector].iloc[-1]
             / normalizedPortfolio[sector].iloc[normalizedPortfolio[sector].index.get_loc(datetime.date.today()
-            - datetime.timedelta(days=365), method='pad')] - 1) * 100
+            - datetime.timedelta(days=365), method='pad')] - 1)
         position['Pct. Return Max'] = (normalizedPortfolio[sector].iloc[-1]
-            / normalizedPortfolio[sector].iloc[0] - 1) * 100
+            / normalizedPortfolio[sector].iloc[0] - 1)
         position['Pct. Return CAGR'] = ((normalizedPortfolio[sector].iloc[-1]
             / normalizedPortfolio[sector].iloc[0]) ** ((1 / ((normalizedPortfolio[sector].index[-1]
-            - normalizedPortfolio[sector].index[0]).total_seconds() / (86400 * 365)))) - 1) * 100
+            - normalizedPortfolio[sector].index[0]).total_seconds() / (86400 * 365)))) - 1)
 
         # Statistics #
         #   Beta = Adjusted Beta
         #   Alpha = Annualized Alpha (Based on Portfolio CAGR)
         position['Beta'] = excessReturnsWeekly[sector].cov(
             excessReturnsWeekly.SP500) / excessReturnsWeekly.SP500.var() * (2 / 3) + (1 / 3)
-        expected_return = (position["Beta"] * (marketRate - riskFree) + riskFree) * 100
-        position['Alpha'] = (position['Pct. Return CAGR'] / 100 - expected_return / 100) * 100
-        position['Sharpe'] = float((position['Pct. Return CAGR'] / 100 - riskFree)
+        expected_return = (position["Beta"] * (marketRate - riskFree) + riskFree)
+        position['Alpha'] = (position['Pct. Return CAGR'] - expected_return)
+        position['Sharpe'] = float((position['Pct. Return CAGR'] - riskFree)
             / ((returnsPortfolio[sector]).std() * 252 ** 0.5))
-        position['Treynor'] = float((position['Pct. Return CAGR'] / 100 - riskFree) / position['Beta'])
+        position['Treynor'] = float((position['Pct. Return CAGR'] - riskFree) / position['Beta'])
 
         # Advanced Statistics #
         #   Std. Deviation = Annualized StdDev = Daily StdDev * sqrt(# of Trading Days)
@@ -187,8 +188,8 @@ def sector_analytics(portfolio, balances, level='basic', excel=False):
             drawdown['Prices'] = normalizedPortfolio[sector]
             drawdown['CumMax'] = drawdown.Prices.cummax()
             drawdown['Drawdown'] = (drawdown['Prices'] - drawdown['CumMax']) / drawdown['CumMax']
-            position['Max Drawdown'] = float(drawdown['Drawdown'].min()) * 100
-            position['Std. Deviation'] = float(returnsPortfolioMarket[sector].std(axis=0) * (252 ** 0.5))
+            position['Max Drawdown'] = float(drawdown['Drawdown'].min())
+            position['Std. Deviation'] = float(returnsPortfolioMarket[sector].std(axis=0) * (252 ** 0.5)) / 100
             position['R Squared'] = (returnsPortfolioMarket[sector].cov(returnsPortfolioMarket.SP500)
                 / (returnsPortfolioMarket[sector].std(axis=0) * returnsPortfolioMarket.SP500.std())) ** 2
             position['Expected Return'] = expected_return
@@ -205,7 +206,8 @@ def sector_analytics(portfolio, balances, level='basic', excel=False):
         # output3.to_excel('./outputs/market.xlsx')
     return output
 
-def performance(portfolio, balances, sectorHoldings, method = 'overall', benchmark = 'spy', weightPortfolio = None):
+
+def outperformance(portfolio, balances, sectorHoldings, method = 'overall', benchmark = 'spy', weightPortfolio = None):
     #   - Returns over multiple time periods [1M, 3M, YTD, 1Y, Max] (all methods)
     #   - Contribution of stock picks (individual, both)
     #   - Contribution of sector weighting (sector, both)
@@ -215,18 +217,18 @@ def performance(portfolio, balances, sectorHoldings, method = 'overall', benchma
     #           - Sector: Performance and contribution by sector
     #           - Both: Performance and contribution by individual picks and asset allocation
     weightMarket = {
-        'Staples': 0.047,
-        'Discretionary': 0.097,
+        'Staples': 0.046,
+        'Discretionary': 0.10,
         'Energy': 0.042,
         'REITs': 0.048,
-        'Financials': 0.107,
-        'Healthcare': 0.096,
-        'Industrials': 0.163,
-        'Utilities': 0.042,
-        'Macro': 0.0,
+        'Financials': 0.10,
+        'Healthcare': 0.11,
+        'Industrials': 0.158,
+        'Utilities': 0.039,
         'Technology': 0.122,
-        'Media': 0.034,
-        'Fixed Income': 0.15
+        'Media': 0.038,
+        'Fixed Income': 0.15,
+        'Macro': 0.0
     }
 
     periods = [
@@ -282,7 +284,7 @@ def performance(portfolio, balances, sectorHoldings, method = 'overall', benchma
             returnsBySector.loc['Pct. Return CAGR'][sector] = (
                 (1 + normalizedBySector[sector].iloc[0] / 100)
                 ** ((1 / ((normalizedBySector[sector].index[-1]
-                            - normalizedBySector[sector].index[0]).total_seconds() / (86400 * 365)))) - 1) * 100
+                            - normalizedBySector[sector].index[0]).total_seconds() / (86400 * 365)))) - 1)
 
             returnsByIndex.loc['Pct. Return 1M'][sector] = (
                 normalizedByIndex[sector].iloc[normalizedByIndex[sector].index.get_loc(
@@ -315,10 +317,88 @@ def performance(portfolio, balances, sectorHoldings, method = 'overall', benchma
         'Asset Allocation':returnsAllocation,
         'Security Selection':returnsSelection
     })
+    outperformance *= 100                                                                                               #Converts to basis points
 
     outperformance.to_excel('./outputs/outperformance.xlsx')
 
     return outperformance
+
+
+def performanceByPosition(portfolio, balances, level='basic', excel=False):
+
+    returnsPortfolio = (portfolio - portfolio.shift(1) - (balances - balances.shift(1))) / portfolio.shift(1)
+    returnsPortfolio.iloc[0] = 0
+    returnsPortfolio = returnsPortfolio.fillna(0)
+    normalizedPortfolio = (returnsPortfolio + 1).cumprod()
+
+    # Daily Return Data #
+    analytics = {}
+    returnsMarket = get_stock('spy')
+    returnsMarket = returnsMarket[returnsPortfolio.index[0]:].pct_change() * 100
+    returnsMarket.name = 'SP500'
+
+    returnsPortfolioMarket = pd.concat([returnsPortfolio * 100, returnsMarket], axis=1)[1:]
+    excessReturnsPortfolioMarket = returnsPortfolioMarket - riskFreeDaily * 100
+
+    excessReturnsWeekly = excessReturnsPortfolioMarket.resample('W-MON').agg(lambda x: (1 + x / 100).prod() - 1) * 100
+
+    # Returns #
+    for sector in normalizedPortfolio.columns:
+        position = {}
+        position['Pct. Return 1M'] = (normalizedPortfolio[sector].iloc[-1]
+            / normalizedPortfolio[sector].iloc[normalizedPortfolio[sector].index.get_loc(datetime.date.today()
+            - datetime.timedelta(days=30), method='pad')] - 1)
+        position['Pct. Return 3M'] = (normalizedPortfolio[sector].iloc[-1]
+            / normalizedPortfolio[sector].iloc[normalizedPortfolio[sector].index.get_loc(datetime.date.today()
+            - datetime.timedelta(days=90), method='pad')] - 1)
+        position['Pct. Return YTD'] = (normalizedPortfolio[sector].iloc[-1]
+            / normalizedPortfolio[sector].iloc[normalizedPortfolio[sector].index.get_loc(datetime.date(
+            datetime.date.today().year, 1, 1), method='pad')] - 1)
+        position['Pct. Return 1Y'] = (normalizedPortfolio[sector].iloc[-1]
+            / normalizedPortfolio[sector].iloc[normalizedPortfolio[sector].index.get_loc(datetime.date.today()
+            - datetime.timedelta(days=365), method='pad')] - 1)
+        position['Pct. Return Max'] = (normalizedPortfolio[sector].iloc[-1]
+            / normalizedPortfolio[sector].iloc[0] - 1)
+        position['Pct. Return CAGR'] = ((normalizedPortfolio[sector].iloc[-1]
+            / normalizedPortfolio[sector].iloc[0]) ** ((1 / ((normalizedPortfolio[sector].index[-1]
+            - normalizedPortfolio[sector].index[0]).total_seconds() / (86400 * 365)))) - 1)
+
+        # Statistics #
+        #   Beta = Adjusted Beta
+        #   Alpha = Annualized Alpha (Based on Portfolio CAGR)
+        position['Beta'] = excessReturnsWeekly[sector].cov(
+            excessReturnsWeekly.SP500) / excessReturnsWeekly.SP500.var() * (2 / 3) + (1 / 3)
+        expected_return = (position["Beta"] * (marketRate - riskFree) + riskFree)
+        position['Alpha'] = (position['Pct. Return CAGR'] - expected_return)
+        position['Sharpe'] = float((position['Pct. Return CAGR'] - riskFree)
+            / ((returnsPortfolio[sector]).std() * 252 ** 0.5))
+        position['Treynor'] = float((position['Pct. Return CAGR'] - riskFree) / position['Beta'])
+
+        # Advanced Statistics #
+        #   Std. Deviation = Annualized StdDev = Daily StdDev * sqrt(# of Trading Days)
+        if level == 'advanced':
+            drawdown = pd.DataFrame()
+            drawdown['Prices'] = normalizedPortfolio[sector]
+            drawdown['CumMax'] = drawdown.Prices.cummax()
+            drawdown['Drawdown'] = (drawdown['Prices'] - drawdown['CumMax']) / drawdown['CumMax']
+            position['Max Drawdown'] = float(drawdown['Drawdown'].min())
+            position['Std. Deviation'] = float(returnsPortfolioMarket[sector].std(axis=0) * (252 ** 0.5)) / 100
+            position['R Squared'] = (returnsPortfolioMarket[sector].cov(returnsPortfolioMarket.SP500)
+                / (returnsPortfolioMarket[sector].std(axis=0) * returnsPortfolioMarket.SP500.std())) ** 2
+            position['Expected Return'] = expected_return
+
+        analytics[sector] = position
+
+    output = pd.DataFrame(analytics, index=list(position.keys())).round(3)
+    # output2 = normalizedPortfolio
+    # output3 = pd.DataFrame(requests.get(fmpurl + 'historical-price-full/SPY?serietype=line').json()['historical']).set_index('date')
+
+    if excel:
+        output.to_excel('./outputs/analyticsByPosition.xlsx')
+        # output2.to_excel('./outputs/sector_prices.xlsx')
+        # output3.to_excel('./outputs/market.xlsx')
+    return output
+
 
 ### Performance ###
 def performancePosition(ticker, select_date='present'):
@@ -342,22 +422,22 @@ def performancePosition(ticker, select_date='present'):
 
     # Returns
     analytics['Pct. Return 1M'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[
-        normalizedPortfolio.index.get_loc(datetime.date.today() - datetime.timedelta(days=30), method='pad')] - 1) * 100
+        normalizedPortfolio.index.get_loc(datetime.date.today() - datetime.timedelta(days=30), method='pad')] - 1)
     analytics['Pct. Return 3M'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[
-        normalizedPortfolio.index.get_loc(datetime.date.today() - datetime.timedelta(days=90), method='pad')] - 1) * 100
+        normalizedPortfolio.index.get_loc(datetime.date.today() - datetime.timedelta(days=90), method='pad')] - 1)
     analytics['Pct. Return YTD'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[
-        normalizedPortfolio.index.get_loc(datetime.date(datetime.date.today().year, 1, 1), method='pad')] - 1) * 100
+        normalizedPortfolio.index.get_loc(datetime.date(datetime.date.today().year, 1, 1), method='pad')] - 1)
     analytics['Pct. Return 1Y'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio.iloc[
         normalizedPortfolio.index.get_loc(datetime.date.today() - datetime.timedelta(days=365),
-                                          method='pad')] - 1) * 100
-    analytics['Pct. Return Max'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio[0] - 1) * 100
+                                          method='pad')] - 1)
+    analytics['Pct. Return Max'] = (normalizedPortfolio.iloc[-1] / normalizedPortfolio[0] - 1)
     analytics['Pct. Return CAGR'] = ((normalizedPortfolio[-1] / normalizedPortfolio[0]) ** (
         (1 / ((normalizedPortfolio.index[-1] - normalizedPortfolio.index[0]).total_seconds() / (
-                86400 * 365)))) - 1) * 100
+                86400 * 365)))) - 1)
     analytics['Beta'] = returnsPortfolioMarket[ticker].cov(
         returnsPortfolioMarket.SP500) / returnsPortfolioMarket.SP500.var() * (2 / 3) + (1 / 3)
-    expected_return = (analytics["Beta"] * (marketRate - riskFree) + riskFree) * 100
-    analytics['Alpha'] = (analytics['Pct. Return CAGR'] / 100 - expected_return / 100) * 100
+    expected_return = (analytics["Beta"] * (marketRate - riskFree) + riskFree)
+    analytics['Alpha'] = (analytics['Pct. Return CAGR'] - expected_return)
 
     return pd.Series(analytics, index=list(analytics.keys())).round(3)
 
@@ -468,6 +548,7 @@ def correlation_matrix(group_by="portfolio", excel=False):
 
 ### Ratios ###
 def ratios(portfolio, method='total'):
+    # If non-sense results: likely a rate limit error on Yahoo size -> wait 10 minutes and try again
 
     if method == 'total':
         ratiosToGet = ['forwardPE', 'priceToBook', 'dividendYield']
@@ -476,42 +557,16 @@ def ratios(portfolio, method='total'):
     portfolioRatios = pd.DataFrame(columns=tickers, index=ratiosToGet)
 
     def ratiosIterable(ticker):
-        portfolioRatios[ticker] = pd.Series(get_ratios(ticker, ratiosToGet))
+        portfolioRatios[ticker] = pd.Series(get_ratios(ticker, ratiosToGet)) * portfolio[ticker].iloc[-2]
 
     with ThreadPool(10) as pool:
         pool.map(ratiosIterable, tickers)
 
-    print(portfolioRatios)
+    portfolioRatios['Cash'] = [0,0,0]
     portfolioRatios = portfolioRatios.fillna(0)
-    portfolioRatios = portfolioRatios * portfolio.iloc[-2]
+    portfolioRatios[portfolioRatios < 0] = 0 #Removes negative ratios
+    portfolioRatios[portfolioRatios > max(portfolio.iloc[-2])*200] = 0  #Removes any ratio over 200x the largest position size
     output = portfolioRatios.sum(axis=1) / sum(portfolio.iloc[-2])
-
-
-    '''
-    if method == 'total':
-        notfound = 0
-        ratiosPortfolio = {'pe': 0, 'pb': 0, 'dYield': 0}
-        cap = 0
-        tickers = set(portfolio.columns.tolist())
-        for ticker in tickers:
-            try:
-                pe = get_ratio(ticker, 'forwardPE')
-                pb = get_ratio(ticker, 'priceToBook')
-                dYield = get_ratio(ticker, 'dividendYield')
-                weight = portfolio[ticker][-2]
-                if pe > 0:
-                    ratiosPortfolio['pe'] += pe * weight
-                if pb > 0:
-                    ratiosPortfolio['pb'] += pb * weight
-                if dYield > 0:
-                    ratiosPortfolio['dYield'] += dYield * weight
-                cap += weight
-            except:
-                print('Call to ratios() failed:', ticker)
-                notfound += 1
-        ratiosPortfolio = pd.Series(ratiosPortfolio)
-        ratiosPortfolio /= cap
-    '''
 
     return output
 

@@ -4,8 +4,6 @@ import pandas as pd
 import yfinance as yf
 
 ### Setup ###
-fmpurl = 'https://financialmodelingprep.com/api/v3/'
-fmpkey = 'b1a82565d318254b3c0006ec0ca43454'
 quandl.ApiConfig.api_key = "WrfYxYjepwxbuzY9TxjP"
 tiingourl = 'https://api.tiingo.com/tiingo/'
 tiingoheaders = {'Content-Type': 'application/json'}
@@ -106,7 +104,6 @@ def get_index(index):
     }
 
     try:
-        # dailyprices = pd.DataFrame(requests.get(fmpurl+'historical-price-full/'+argmap[index.lower()]+'?serietype=line').json()['historical']).set_index('date')      # Gets the daily closing price of a stock starting on the buy date
         dailyprices = pd.DataFrame(requests.get(tiingourl+'daily/'+argmap[index.lower()]+'/prices?token='+tiingokey+'&startDate=2015-1-1', headers=tiingoheaders).json()).set_index('date')
 
     except KeyError:
@@ -118,7 +115,6 @@ def get_index(index):
 
 def get_stock(ticker):
     try:
-            # dailyprices = pd.DataFrame(requests.get(fmpurl+'historical-price-full/'+ticker+'?apikey='+fmpkey).json()['historical']).set_index('date')
             dailyprices = pd.DataFrame(requests.get(tiingourl+'daily/'+ticker+'/prices?token='+tiingokey+'&startDate=2015-1-1', headers=tiingoheaders).json()).set_index('date')
     except KeyError:
         print('Invalid Ticker for get_stock (%s)' % (ticker))
@@ -127,21 +123,6 @@ def get_stock(ticker):
     dailyprices.index = dailyprices.index.tz_convert(None)
     dailyprices = dailyprices.sort_index()
     return dailyprices.adjClose
-
-def get_stocks(tickerList):
-    dataOut = pd.DataFrame()
-    errors = []
-    for ticker in tickerList:
-        try:
-            dailyprices = pd.DataFrame(requests.get(fmpurl+'historical-price-full/'+ticker+'?apikey='+fmpkey).json()['historical']).set_index('date')
-            dailyprices.index = pd.to_datetime(dailyprices.index)
-            dailyprices = dailyprices.close
-            dataOut = pd.concat([dataOut, dailyprices], axis=1) 
-        except KeyError:
-            errors.append(ticker)
-    print('Error tickers:', errors)
-    return dataOut
-
 
 def get_ratio(ticker, ratio):
     try:
